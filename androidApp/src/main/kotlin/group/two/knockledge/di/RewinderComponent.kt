@@ -57,11 +57,7 @@ import javax.inject.Singleton
 import org.jetbrains.annotations.Nullable
 
 @Singleton
-<<<<<<< HEAD
-@Component(modules = [RewinderModule::class, DataModule::class])
-=======
-@Component(modules = [RewinderModule::class, KnockRecordingModule::class])
->>>>>>> feat/004
+@Component(modules = [RewinderModule::class, DataModule::class, KnockRecordingModule::class])
 interface RewinderComponent {
     fun data(): DataGraph
 
