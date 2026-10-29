@@ -35,8 +35,12 @@ import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.MixedAudioSource
 import group.two.knockledge.audio.SessionHooks
 import group.two.knockledge.core.LocalAudioRingBuffer
+import group.two.knockledge.data.AuthRepository
+import group.two.knockledge.data.NoteRepository
 import group.two.knockledge.data.RecentsRepository
 import group.two.knockledge.data.StoredRecentsRepository
+import group.two.knockledge.data.repository.NoteSink
+import group.two.knockledge.data.repository.SnapshotNoteSink
 import group.two.knockledge.models.ModelCatalog
 import group.two.knockledge.models.ModelDownloader
 import group.two.knockledge.models.ModelFiles
@@ -205,15 +209,20 @@ object RewinderModule {
 
     @Provides
     @Singleton
+    fun noteSink(notes: NoteRepository, auth: AuthRepository): NoteSink = SnapshotNoteSink(notes, auth)
+
+    @Provides
+    @Singleton
     fun controller(
         audioSource: AudioSource,
         hooks: SessionHooks,
         pipeline: RewindPipeline,
         recents: RecentsRepository,
         buffer: LocalAudioRingBuffer,
+        sink: NoteSink,
         settings: AppSettings,
     ): RewinderController =
-        RewinderController(audioSource, hooks, pipeline, recents, buffer, settings.bufferDurationSeconds)
+        RewinderController(audioSource, hooks, pipeline, recents, buffer, sink, settings.bufferDurationSeconds)
 
     @Provides
     @Singleton

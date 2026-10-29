@@ -2,6 +2,7 @@ package group.two.knockledge.ui
 
 import group.two.knockledge.RewinderController
 import group.two.knockledge.RewinderState
+import group.two.knockledge.data.TriggerType
 import group.two.knockledge.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +24,7 @@ fun RewinderController.asBackend(): RecordingBackend = object : RecordingBackend
     override fun stop() = this@asBackend.stop()
     override fun save(): Boolean {
         if (!state.value.canRewind) return false
-        rewind()
+        rewind(TriggerType.MANUAL)
         return true
     }
 }

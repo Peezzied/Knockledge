@@ -39,6 +39,7 @@ class RewindPipeline(
         sampleRate: Int,
         durationMillis: Long,
         onStage: (RewindStage) -> Unit = {},
+        onTranscript: (TranscriptResult) -> Unit = {},
     ): Summary {
         onStage(RewindStage.Transcribing)
         val transcript = try {
@@ -46,6 +47,7 @@ class RewindPipeline(
         } finally {
             pcm.fill(0)
         }
+        onTranscript(transcript)
         val filtered = filter.filter(labeled(transcript))
         onStage(RewindStage.Summarizing)
         return summarizer.summarize(

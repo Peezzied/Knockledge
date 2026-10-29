@@ -7,8 +7,11 @@ import group.two.knockledge.core.FileLocalAudioRingBuffer
 import group.two.knockledge.core.LocalAudioRingBuffer
 import group.two.knockledge.core.RewindPolicy
 import group.two.knockledge.data.RecentsRepository
+import group.two.knockledge.data.TriggerType
+import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.pipeline.RewindPipeline
 import group.two.knockledge.pipeline.RewindStage
+import group.two.knockledge.pipeline.TranscriptResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,6 +84,7 @@ class RewinderController(
     private val pipeline: RewindPipeline,
     private val recents: RecentsRepository,
     private val buffer: LocalAudioRingBuffer,
+    private val noteSink: NoteSink? = null,
     windowSeconds: StateFlow<Int> = MutableStateFlow(RewindPolicy.WINDOW_SECONDS),
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
@@ -174,26 +178,37 @@ class RewinderController(
      * Snapshots are taken instantly; summaries run one at a time so only one model is
      * ever loaded. Ignored until 3 minutes (or the whole window, if shorter) are cached.
      */
-    fun rewind() {
+    fun rewind(trigger: TriggerType = TriggerType.GESTURE) {
         if (!_state.value.canRewind) return
         _state.update { it.copy(pendingRewinds = it.pendingRewinds + 1) }
         scope.launch {
+            var wav: File? = null
             try {
-                val pcm = withContext(audioDispatcher) { readPcm(buffer.snapshot()) }
+                wav = withContext(audioDispatcher) { buffer.snapshot() }
+                val pcm = readPcm(wav)
                 val endedAt = nowMillis()
                 val durationMillis = pcm.size * 1000L / RewindPolicy.SAMPLE_RATE
+                var transcript: TranscriptResult? = null
                 pipelineLock.withLock {
-                    val summary = pipeline.run(pcm, RewindPolicy.SAMPLE_RATE, durationMillis) { stage ->
-                        _state.update { it.copy(stage = stage) }
-                    }
+                    val summary = pipeline.run(
+                        pcm,
+                        RewindPolicy.SAMPLE_RATE,
+                        durationMillis,
+                        onStage = { stage -> _state.update { it.copy(stage = stage) } },
+                        onTranscript = { transcript = it },
+                    )
                     val recent = recents.add(summary, endedAt - durationMillis, endedAt)
                     _created.tryEmit(recent.id)
+                    transcript?.let { t ->
+                        runCatching { noteSink?.record(wav, endedAt - durationMillis, endedAt, trigger, t, summary) }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
                 reportError(t.message ?: "Could not summarize that rewind.")
             } finally {
+                wav?.delete()
                 _state.update {
                     val left = (it.pendingRewinds - 1).coerceAtLeast(0)
                     it.copy(pendingRewinds = left, stage = if (left == 0) null else it.stage)
@@ -202,14 +217,12 @@ class RewinderController(
         }
     }
 
-    private fun readPcm(wav: File): ShortArray = try {
+    private fun readPcm(wav: File): ShortArray {
         val bytes = wav.readBytes()
         val offset = FileLocalAudioRingBuffer.WAV_HEADER_BYTES
-        ShortArray((bytes.size - offset) / 2).also {
+        return ShortArray((bytes.size - offset) / 2).also {
             ByteBuffer.wrap(bytes, offset, it.size * 2).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(it)
         }
-    } finally {
-        wav.delete()
     }
 
     fun delete(id: Long) {

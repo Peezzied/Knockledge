@@ -13,6 +13,7 @@ import android.os.IBinder
 import group.two.knockledge.audio.DeviceAudioConsent
 import group.two.knockledge.core.RewindPolicy
 import group.two.knockledge.core.formatDuration
+import group.two.knockledge.data.TriggerType
 import group.two.knockledge.sensor.KnockGestureDetector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,7 +61,7 @@ class RewinderService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> controller.stop()
-            ACTION_REWIND -> controller.rewind()
+            ACTION_REWIND -> controller.rewind(TriggerType.MANUAL)
             else -> {
                 val first = build(NotificationModel(true, 0L, canRewind = false, summarizing = false))
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
