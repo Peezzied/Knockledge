@@ -16,6 +16,9 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit"))
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 
     implementation(libs.onnxruntime.android)
     implementation(libs.litertlm.android)
@@ -47,6 +50,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "0.2.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     packaging {
         resources {

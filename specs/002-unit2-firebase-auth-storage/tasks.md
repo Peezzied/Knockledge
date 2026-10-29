@@ -100,7 +100,7 @@
 **Purpose**: Multi-user local data partitioning, migration verification, and quickstart end-to-end validation.
 
 - [x] T028 [P] Implement sign-out cleanup ensuring local database notes remain partitioned on disk and active state flows reset in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/AuthRepositoryImpl.kt`
-- [ ] T029 [P] Add in-memory SQLite database helper and schema validation tests in `androidApp/src/test/kotlin/two/knockledge/data/local/KnockledgeDatabaseTest.kt`
+- [x] T029 [P] Add in-memory SQLite database helper and schema validation tests in `androidApp/src/test/kotlin/two/knockledge/data/local/KnockledgeDatabaseTest.kt`
 - [ ] T030 Execute end-to-end quickstart validation scenarios from `quickstart.md` covering auth, offline persistence, and cloud sync
 
 ---
