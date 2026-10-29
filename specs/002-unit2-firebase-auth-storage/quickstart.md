@@ -92,3 +92,15 @@ Expected output:
 - `NoteRepositoryTest`: Ingestion from snapshot, transcript attachment, and summary attachment pass.
 - `AuthRepositoryTest`: Google sign-in, email/password validation, and collision exceptions pass.
 - `SyncQueueTest`: Offline queueing, backoff retry, and sync completion pass.
+
+## Cloud Sync Integration Test (Firebase Emulator Suite)
+
+Prereqs: `firebase-tools` (`npm i -g firebase-tools`), an Android emulator or device on API 26+, JDK.
+
+```powershell
+firebase emulators:start --only auth,firestore,storage --project demo-knockledge
+# default ports: Auth 9099, Firestore 8080, Storage 9199 (test uses 10.0.2.2)
+.\gradlew.bat :androidApp:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=group.two.knockledge.CloudSyncIntegrationTest"
+```
+
+The test creates a throwaway email user in the Auth emulator, uploads the note WAV to the Storage emulator, writes the Firestore document per `contracts/firestore-note-schema.json`, and verifies a second `SyncEngine` run creates no duplicates. It never targets the production project (`useEmulator` only).
