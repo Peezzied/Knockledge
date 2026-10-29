@@ -11,6 +11,9 @@ Agents must follow the constitution in [.specify/memory/constitution.md](file://
 3. **Karpathy Discipline**: State assumptions explicitly before coding. Touch only required code lines. Preserve existing code style and formatting. Write a reproducing test before fixing any defect.
 4. **Ponytail Simplicity**: Use Android platform APIs and Kotlin standard library first. Favor code deletion over code addition. Require approval for every new dependency.
 
+5. **Shell**: Always run commands with `shell_flavor: "powershell"` and PowerShell syntax. Never use bash.
+6. **Android CLI & Studio**: Use the official `android` CLI for Android tasks. Use `android studio ...` commands during development when an Android Studio instance is running.
+
 ## Architecture & Technology Stack
 
 - **Architecture**: MVVM with Unidirectional Data Flow (UDF). ViewModels expose immutable `StateFlow` state to Jetpack Compose UI.

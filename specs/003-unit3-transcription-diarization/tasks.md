@@ -20,8 +20,8 @@ description: "Task list for Unit 3 — Transcription & Diarization implementatio
 
 **Purpose**: Validate dependencies and define shared data models.
 
-- [ ] T001 Verify Firebase AI Logic and ONNX Runtime dependencies in `androidApp/build.gradle.kts`
-- [ ] T002 [P] Define `AudioSegment`, `TranscriptSentence`, `TranscriptResult`, and `TranscriptionEngineType` models in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/TranscriptModels.kt`
+- [x] T001 Verify Firebase AI Logic and ONNX Runtime dependencies in `androidApp/build.gradle.kts`
+- [x] T002 [P] Define `AudioSegment`, `TranscriptSentence`, `TranscriptResult`, and `TranscriptionEngineType` models in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/TranscriptModels.kt`
 
 ---
 
@@ -31,8 +31,8 @@ description: "Task list for Unit 3 — Transcription & Diarization implementatio
 
 **⚠️ CRITICAL**: Must complete before user story implementation begins.
 
-- [ ] T003 Define `Transcriber` and `TranscriptionEngine` interface contracts in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/TranscriberContracts.kt`
-- [ ] T004 [P] Create unit test fixture for transcription routing and timeout fallback in `androidApp/src/test/kotlin/two/knockledge/TranscriberTest.kt`
+- [x] T003 Define `Transcriber` and `TranscriptionEngine` interface contracts in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/TranscriberContracts.kt`
+- [x] T004 [P] Create unit test fixture for transcription routing and timeout fallback in `androidApp/src/test/kotlin/two/knockledge/TranscriberTest.kt`
 
 **Checkpoint**: Core contracts and test fixtures ready — user story implementation can begin.
 
@@ -46,13 +46,13 @@ description: "Task list for Unit 3 — Transcription & Diarization implementatio
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T005 [P] [US1] Write failing unit test for Gemini structured transcription JSON response parsing in `androidApp/src/test/kotlin/two/knockledge/FirebaseAiTranscriberTest.kt`
+- [x] T005 [P] [US1] Write failing unit test for Gemini structured transcription JSON response parsing in `androidApp/src/test/kotlin/two/knockledge/FirebaseAiTranscriberTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] Implement `FirebaseAiTranscriber` using Firebase AI (Gemini 1.5 Flash) with audio blob payload and structured JSON output in `androidApp/src/main/kotlin/group/two/knockledge/ai/FirebaseAiTranscriber.kt`
-- [ ] T007 [US1] Implement `CompositeTranscriber` with 10-second timeout and immediate fallback routing in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/CompositeTranscriber.kt`
-- [ ] T008 [US1] Register `Transcriber` binding in Dagger dependency injection graph in `androidApp/src/main/kotlin/group/two/knockledge/di/RewinderComponent.kt`
+- [x] T006 [US1] Implement `FirebaseAiTranscriber` using Firebase AI (Gemini 1.5 Flash) with audio blob payload and structured JSON output in `androidApp/src/main/kotlin/group/two/knockledge/ai/FirebaseAiTranscriber.kt`
+- [x] T007 [US1] Implement `CompositeTranscriber` with 10-second timeout and immediate fallback routing in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/CompositeTranscriber.kt`
+- [x] T008 [US1] Register `Transcriber` binding in Dagger dependency injection graph in `androidApp/src/main/kotlin/group/two/knockledge/di/RewinderComponent.kt`
 
 **Checkpoint**: User Story 1 fully functional and independently testable as MVP.
 
@@ -66,12 +66,12 @@ description: "Task list for Unit 3 — Transcription & Diarization implementatio
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T009 [P] [US2] Write failing unit test for `WhisperTranscriberAdapter` output mapping in `androidApp/src/test/kotlin/two/knockledge/WhisperTranscriberTest.kt`
+- [x] T009 [P] [US2] Write failing unit test for `WhisperTranscriberAdapter` output mapping in `androidApp/src/test/kotlin/two/knockledge/WhisperTranscriberTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T010 [US2] Implement `WhisperTranscriberAdapter` wrapping `AndroidSpeechEngine.transcribe` into `TranscriptResult` with single `"Speaker"` stream in `androidApp/src/main/kotlin/group/two/knockledge/ai/WhisperTranscriberAdapter.kt`
-- [ ] T011 [US2] Integrate offline network connectivity check into `CompositeTranscriber.kt` to route offline calls directly to `WhisperTranscriberAdapter`
+- [x] T010 [US2] Implement `WhisperTranscriberAdapter` wrapping `AndroidSpeechEngine.transcribe` into `TranscriptResult` with single `"Speaker"` stream in `androidApp/src/main/kotlin/group/two/knockledge/ai/WhisperTranscriberAdapter.kt`
+- [x] T011 [US2] Integrate offline network connectivity check into `CompositeTranscriber.kt` to route offline calls directly to `WhisperTranscriberAdapter`
 
 **Checkpoint**: User Stories 1 and 2 operate independently with seamless online/offline switching.
 
@@ -85,12 +85,12 @@ description: "Task list for Unit 3 — Transcription & Diarization implementatio
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T012 [P] [US3] Write unit test for `AudioConditioner` gain scaling and silence trimming in `androidApp/src/test/kotlin/two/knockledge/AudioConditionerTest.kt`
+- [x] T012 [P] [US3] Write unit test for `AudioConditioner` gain scaling and silence trimming in `androidApp/src/test/kotlin/two/knockledge/AudioConditionerTest.kt`
 
 ### Implementation for User Story 3
 
-- [ ] T013 [US3] Implement `AudioConditioner` wrapping `AudioGain.normalize` and energy-based silence trimming in `androidApp/src/main/kotlin/group/two/knockledge/audio/AudioConditioner.kt`
-- [ ] T014 [US3] Connect `AudioConditioner` into `CompositeTranscriber.transcribe` prior to engine execution in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/CompositeTranscriber.kt`
+- [x] T013 [US3] Implement `AudioConditioner` wrapping `AudioGain.normalize` and energy-based silence trimming in `androidApp/src/main/kotlin/group/two/knockledge/audio/AudioConditioner.kt`
+- [x] T014 [US3] Connect `AudioConditioner` into `CompositeTranscriber.transcribe` prior to engine execution in `androidApp/src/main/kotlin/group/two/knockledge/pipeline/CompositeTranscriber.kt`
 
 **Checkpoint**: Audio conditioning pipeline active across all transcription routes.
 
@@ -100,7 +100,7 @@ description: "Task list for Unit 3 — Transcription & Diarization implementatio
 
 **Purpose**: Verification, quality gates, and end-to-end checks.
 
-- [ ] T015 [P] Run full unit test suite via `./gradlew test` to verify zero regressions
+- [x] T015 [P] Run full unit test suite via `./gradlew test` to verify zero regressions
 - [ ] T016 Execute quickstart scenarios in `specs/003-unit3-transcription-diarization/quickstart.md`
 
 ---
