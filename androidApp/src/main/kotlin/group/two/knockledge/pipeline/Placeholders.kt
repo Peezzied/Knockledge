@@ -7,8 +7,8 @@ import group.two.knockledge.core.formatDuration
  * They let the full flow run end to end on both platforms today.
  */
 class PlaceholderTranscriber : Transcriber {
-    override suspend fun transcribe(pcm: ShortArray, sampleRate: Int): Transcript =
-        Transcript(text = "", looksLikeConversation = false)
+    override suspend fun transcribe(pcm: ShortArray, sampleRate: Int): TranscriptResult =
+        TranscriptResult(emptyList(), "", false, "unknown", TranscriptionEngineType.LOCAL_WHISPER)
 }
 
 class PlaceholderSummarizer : Summarizer {
