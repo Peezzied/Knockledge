@@ -1,10 +1,27 @@
-<!-- CODEGRAPH_START -->
-## CodeGraph
+# Knockledge Agent Instructions
 
-In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+Knockledge is a native Android caching audio recording application. The application records audio continuously in a circular window buffer. It automatically removes older unmarked audio to save memory. The device accelerometer detects gestures to save recently recorded audio.
 
-- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
-- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+Agents must follow the constitution in [.specify/memory/constitution.md](file:///D:/General%20Project%20Bins/Academics/CIT306/Knockledge/.specify/memory/constitution.md).
 
-If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
-<!-- CODEGRAPH_END -->
+## Core Directives
+
+1. **Hackathon MVP Scope (3-Day Limit)**: Build the minimum working solution. Stop work immediately when acceptance criteria pass. Reject speculative features and premature optimization.
+2. **ADHD Communication Rules**: Lead responses with the next direct action on line 1. Format sequential tasks as numbered lists capped at 5 items. Conclude with one concrete action doable in under 2 minutes. Eliminate pleasantries and conversational recaps.
+3. **Karpathy Discipline**: State assumptions explicitly before coding. Touch only required code lines. Preserve existing code style and formatting. Write a reproducing test before fixing any defect.
+4. **Ponytail Simplicity**: Use Android platform APIs and Kotlin standard library first. Favor code deletion over code addition. Require approval for every new dependency.
+
+## Architecture & Technology Stack
+
+- **Architecture**: MVVM with Unidirectional Data Flow (UDF). ViewModels expose immutable `StateFlow` state to Jetpack Compose UI.
+- **Core Platform**: Android SDK, Kotlin, Jetpack Compose, and Dagger DI.
+- **Persistence**: Room for local caching and Cloud Firestore for remote synchronization.
+- **Authentication**: Firebase Auth.
+- **Audio & Sensors**: Circular window buffer, accelerometer gesture detection, Google SpeechRecognizer, and Whisper.
+- **AI Processing**: Firebase AI for cloud inference.
+
+## Quality Gates & Verification
+
+- **Compose Previews**: Provide stateless `@Preview` composables for all UI components. Never couple previews to ViewModels or databases. Wrap previews in the project theme.
+- **Unit Testing**: Run and pass `./gradlew test` for routine verification. Write fast JVM unit tests for all business logic.
+- **Integration Tests**: Never run integration tests in bulk. Always ask user permission before running full integration tests.
