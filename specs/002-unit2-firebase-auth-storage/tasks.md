@@ -1,4 +1,4 @@
-# Tasks: Unit 2 — Firebase, Auth & Storage
+﻿# Tasks: Unit 2 — Firebase, Auth & Storage
 
 **Input**: Design documents from `/specs/002-unit2-firebase-auth-storage/`
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
@@ -15,9 +15,9 @@
 
 **Purpose**: Project initialization, dependency additions, and platform storage configuration.
 
-- [ ] T001 Configure Room (`2.6.1`) and Firebase BOM (`33.5.1` with `auth`, `firestore`, `storage`, and `credentials`) in `gradle/libs.versions.toml`
-- [ ] T002 [P] Apply Room KSP compiler and add Firebase and Room runtime dependencies to `androidApp/build.gradle.kts`
-- [ ] T003 [P] Configure app-private audio directory creation helper at `context.filesDir/audio/` in `androidApp/src/main/kotlin/group/two/knockledge/data/local/AudioFileStorage.kt`
+- [x] T001 Configure Room (`2.6.1`) and Firebase BOM (`33.5.1` with `auth`, `firestore`, `storage`, and `credentials`) in `gradle/libs.versions.toml`
+- [x] T002 [P] Apply Room KSP compiler and add Firebase and Room runtime dependencies to `androidApp/build.gradle.kts`
+- [x] T003 [P] Configure app-private audio directory creation helper at `context.filesDir/audio/` in `androidApp/src/main/kotlin/group/two/knockledge/data/local/AudioFileStorage.kt`
 
 ---
 
@@ -27,14 +27,14 @@
 
 **⚠️ CRITICAL**: Must complete before any user story implementation can begin.
 
-- [ ] T004 Create unified domain entities (`Note`, `AudioMetadata`, `TranscriptMetadata`, `Sentence`, `SummaryMetadata`, `ChapterMarker`, `UserProfile`) and enums (`AuthProvider`, `SyncStatus`, `TriggerType`, `TranscriptionEngineType`, `AiEngineType`) in `androidApp/src/main/kotlin/group/two/knockledge/data/model/NoteModels.kt`
-- [ ] T005 [P] Define `NoteRepository` contract interface per specification in `androidApp/src/main/kotlin/group/two/knockledge/data/NoteRepository.kt`
-- [ ] T006 [P] Define `AuthRepository` contract interface per specification in `androidApp/src/main/kotlin/group/two/knockledge/data/AuthRepository.kt`
-- [ ] T007 Create Room SQLite entities `NoteEntity` and `SyncQueueEntity` with foreign key and indices in `androidApp/src/main/kotlin/group/two/knockledge/data/local/NoteEntity.kt`
-- [ ] T008 [P] Implement Room TypeConverters for `List<Sentence>` and `List<ChapterMarker>` JSON serialization in `androidApp/src/main/kotlin/group/two/knockledge/data/local/NoteTypeConverters.kt`
-- [ ] T009 Define `NoteDao` with user-partitioned queries (`WHERE user_id = :userId`) and `SyncQueueDao` in `androidApp/src/main/kotlin/group/two/knockledge/data/local/NoteDao.kt`
-- [ ] T010 Create `KnockledgeDatabase` RoomDatabase definition with version 1 schema in `androidApp/src/main/kotlin/group/two/knockledge/data/local/KnockledgeDatabase.kt`
-- [ ] T011 [P] Create Dagger DI module `DataModule` providing Room database, DAOs, and repository bindings in `androidApp/src/main/kotlin/group/two/knockledge/di/DataModule.kt`
+- [x] T004 Create unified domain entities (`Note`, `AudioMetadata`, `TranscriptMetadata`, `Sentence`, `SummaryMetadata`, `ChapterMarker`, `UserProfile`) and enums (`AuthProvider`, `SyncStatus`, `TriggerType`, `TranscriptionEngineType`, `AiEngineType`) in `androidApp/src/main/kotlin/group/two/knockledge/data/model/NoteModels.kt`
+- [x] T005 [P] Define `NoteRepository` contract interface per specification in `androidApp/src/main/kotlin/group/two/knockledge/data/NoteRepository.kt`
+- [x] T006 [P] Define `AuthRepository` contract interface per specification in `androidApp/src/main/kotlin/group/two/knockledge/data/AuthRepository.kt`
+- [x] T007 Create Room SQLite entities `NoteEntity` and `SyncQueueEntity` with foreign key and indices in `androidApp/src/main/kotlin/group/two/knockledge/data/local/NoteEntity.kt`
+- [x] T008 [P] Implement Room TypeConverters for `List<Sentence>` and `List<ChapterMarker>` JSON serialization in `androidApp/src/main/kotlin/group/two/knockledge/data/local/NoteTypeConverters.kt`
+- [x] T009 Define `NoteDao` with user-partitioned queries (`WHERE user_id = :userId`) and `SyncQueueDao` in `androidApp/src/main/kotlin/group/two/knockledge/data/local/NoteDao.kt`
+- [x] T010 Create `KnockledgeDatabase` RoomDatabase definition with version 1 schema in `androidApp/src/main/kotlin/group/two/knockledge/data/local/KnockledgeDatabase.kt`
+- [x] T011 [P] Create Dagger DI module `DataModule` providing Room database, DAOs, and repository bindings in `androidApp/src/main/kotlin/group/two/knockledge/di/DataModule.kt`
 
 **Checkpoint**: Core foundation and database layers ready. User story implementation can begin.
 
@@ -46,14 +46,14 @@
 **Independent Test**: Complete login/registration flow with Google or email/password, restart application, and verify session restores within 1 second. Verify duplicate email sign-ins throw `AuthCollisionException`.
 
 ### Tests for User Story 1
-- [ ] T012 [P] [US1] Write JVM unit tests in `androidApp/src/test/kotlin/two/knockledge/data/AuthRepositoryTest.kt` verifying Google ID token ingestion, email format validation, password constraints, duplicate email collision rejection, and session retention.
+- [x] T012 [P] [US1] Write JVM unit tests in `androidApp/src/test/kotlin/two/knockledge/data/AuthRepositoryTest.kt` verifying Google ID token ingestion, email format validation, password constraints, duplicate email collision rejection, and session retention.
 
 ### Implementation for User Story 1
-- [ ] T013 [US1] Implement `FirebaseAuthSource` wrapping Firebase Auth with Android Credential Manager for Google Sign-In and Email/Password credentials in `androidApp/src/main/kotlin/group/two/knockledge/data/remote/FirebaseAuthSource.kt`
-- [ ] T014 [US1] Implement `AuthRepositoryImpl` with `currentUser: StateFlow<UserProfile?>`, display name collection during registration, and collision handling in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/AuthRepositoryImpl.kt`
-- [ ] T015 [US1] Implement `AuthViewModel` with UDF pattern exposing immutable `StateFlow<AuthState>` for sign-in, registration, and collision notices in `androidApp/src/main/kotlin/group/two/knockledge/ui/auth/AuthViewModel.kt`
-- [ ] T016 [US1] Build Jetpack Compose `AuthScreen` with stateless `@Preview` composables for Google and Email/Password authentication in `androidApp/src/main/kotlin/group/two/knockledge/ui/auth/AuthScreen.kt`
-- [ ] T017 [US1] Wire mandatory authentication gate in `MainActivity.kt` blocking recording features until user successfully authenticates in `androidApp/src/main/kotlin/group/two/knockledge/MainActivity.kt`
+- [x] T013 [US1] Implement `FirebaseAuthSource` wrapping Firebase Auth with Android Credential Manager for Google Sign-In and Email/Password credentials in `androidApp/src/main/kotlin/group/two/knockledge/data/remote/FirebaseAuthSource.kt`
+- [x] T014 [US1] Implement `AuthRepositoryImpl` with `currentUser: StateFlow<UserProfile?>`, display name collection during registration, and collision handling in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/AuthRepositoryImpl.kt`
+- [x] T015 [US1] Implement `AuthViewModel` with UDF pattern exposing immutable `StateFlow<AuthState>` for sign-in, registration, and collision notices in `androidApp/src/main/kotlin/group/two/knockledge/ui/auth/AuthViewModel.kt`
+- [x] T016 [US1] Build Jetpack Compose `AuthScreen` with stateless `@Preview` composables for Google and Email/Password authentication in `androidApp/src/main/kotlin/group/two/knockledge/ui/auth/AuthScreen.kt`
+- [x] T017 [US1] Wire mandatory authentication gate in `MainActivity.kt` blocking recording features until user successfully authenticates in `androidApp/src/main/kotlin/group/two/knockledge/MainActivity.kt`
 
 **Checkpoint**: User Story 1 complete. Authentication and persistent identity work end-to-end.
 
@@ -65,13 +65,13 @@
 **Independent Test**: Enable Airplane Mode, trigger note creation from an audio snapshot, and verify that note metadata and audio file persist on device in under 200 ms with offline playback.
 
 ### Tests for User Story 2
-- [ ] T018 [P] [US2] Write JVM unit tests in `androidApp/src/test/kotlin/two/knockledge/data/NoteRepositoryTest.kt` verifying audio snapshot ingestion, sub-200ms SQLite write latency, transcript attachment, AI summary attachment, and user query partitioning.
+- [x] T018 [P] [US2] Write JVM unit tests in `androidApp/src/test/kotlin/two/knockledge/data/NoteRepositoryTest.kt` verifying audio snapshot ingestion, sub-200ms SQLite write latency, transcript attachment, AI summary attachment, and user query partitioning.
 
 ### Implementation for User Story 2
-- [ ] T019 [US2] Implement `NoteRepositoryImpl.createFromSnapshot()` to transfer audio snapshot files from cache to `filesDir/audio/{noteId}.wav` and insert `NoteEntity` (`syncStatus = LOCAL_ONLY`) in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/NoteRepositoryImpl.kt`
-- [ ] T020 [US2] Implement `NoteRepositoryImpl.attachTranscript()` and `NoteRepositoryImpl.attachSummary()` to update note records and enqueue sync tasks in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/NoteRepositoryImpl.kt`
-- [ ] T021 [US2] Implement `NoteRepositoryImpl.observeNotes(userId)` and `getNote(id, userId)` returning reactive flows strictly filtered by `userId` in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/NoteRepositoryImpl.kt`
-- [ ] T022 [US2] Adapt existing `RecentsRepository` to delegate to `NoteRepository` for backward compatibility in `androidApp/src/main/kotlin/group/two/knockledge/data/Recents.kt`
+- [x] T019 [US2] Implement `NoteRepositoryImpl.createFromSnapshot()` to transfer audio snapshot files from cache to `filesDir/audio/{noteId}.wav` and insert `NoteEntity` (`syncStatus = LOCAL_ONLY`) in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/NoteRepositoryImpl.kt`
+- [x] T020 [US2] Implement `NoteRepositoryImpl.attachTranscript()` and `NoteRepositoryImpl.attachSummary()` to update note records and enqueue sync tasks in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/NoteRepositoryImpl.kt`
+- [x] T021 [US2] Implement `NoteRepositoryImpl.observeNotes(userId)` and `getNote(id, userId)` returning reactive flows strictly filtered by `userId` in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/NoteRepositoryImpl.kt`
+- [x] T022 [US2] Adapt existing `RecentsRepository` to delegate to `NoteRepository` for backward compatibility in `androidApp/src/main/kotlin/group/two/knockledge/data/Recents.kt`
 
 **Checkpoint**: User Story 2 complete. Offline-first local storage persists and unifies data across all units.
 
@@ -99,7 +99,7 @@
 
 **Purpose**: Multi-user local data partitioning, migration verification, and quickstart end-to-end validation.
 
-- [ ] T028 [P] Implement sign-out cleanup ensuring local database notes remain partitioned on disk and active state flows reset in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/AuthRepositoryImpl.kt`
+- [x] T028 [P] Implement sign-out cleanup ensuring local database notes remain partitioned on disk and active state flows reset in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/AuthRepositoryImpl.kt`
 - [ ] T029 [P] Add in-memory SQLite database helper and schema validation tests in `androidApp/src/test/kotlin/two/knockledge/data/local/KnockledgeDatabaseTest.kt`
 - [ ] T030 Execute end-to-end quickstart validation scenarios from `quickstart.md` covering auth, offline persistence, and cloud sync
 

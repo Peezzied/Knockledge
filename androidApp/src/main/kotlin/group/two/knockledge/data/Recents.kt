@@ -1,5 +1,6 @@
 package group.two.knockledge.data
 
+import group.two.knockledge.data.model.Note
 import group.two.knockledge.pipeline.Summary
 import group.two.knockledge.settings.KeyValueStore
 import kotlinx.coroutines.sync.Mutex
@@ -7,9 +8,17 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CoroutineScope
 
-/** A saved rewind. This is the only thing Rewinder keeps. No audio, no transcript. */
+/** A saved rewind. Summary-only view of a rewind; audio and transcripts live in NoteRepository. */
 data class Recent(
     val id: Long,
     val title: String,
@@ -58,7 +67,7 @@ class InMemoryRecentsRepository : RecentsRepository {
 /**
  * Keeps tapes across app restarts in the platform key-value store (SharedPreferences /
  * NSUserDefaults, both private to the app and excluded from cloud backup on Android).
- * Only summaries are stored: title, gist, points, counts and times. Never audio or transcripts.
+ * Only summaries are stored here: title, gist, points, counts and times. Audio and transcripts go to NoteRepository.
  */
 class StoredRecentsRepository(
     private val store: KeyValueStore,
@@ -143,3 +152,34 @@ object RecentsCodec {
     private fun clean(s: String) = s.filterNot { it == RECORD || it == FIELD || it == POINT }
 }
 
+/** Read-through view of NoteRepository for the signed-in user; add() needs an audio snapshot, so use NoteRepository. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class NoteBackedRecentsRepository(
+    private val notes: NoteRepository,
+    private val auth: AuthRepository,
+    scope: CoroutineScope,
+) : RecentsRepository {
+    private fun Note.recentId() = id.hashCode().toLong()
+
+    override val recents: StateFlow<List<Recent>> = auth.currentUser
+        .flatMapLatest { u -> u?.let { notes.observeNotes(it.uid) } ?: emptyFlow() }
+        .map { list ->
+            list.mapNotNull { n ->
+                n.summary?.let {
+                    Recent(
+                        n.recentId(), n.title, it.executiveSummary, it.keyPoints, 0,
+                        n.createdAtEpochMs - n.audio.durationMs, n.createdAtEpochMs,
+                    )
+                }
+            }
+        }
+        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    override suspend fun add(summary: Summary, startedAtMillis: Long, endedAtMillis: Long): Recent =
+        throw UnsupportedOperationException("Create notes via NoteRepository.createFromSnapshot")
+
+    override suspend fun delete(id: Long) {
+        val uid = auth.currentUser.value?.uid ?: return
+        notes.observeNotes(uid).first().firstOrNull { it.recentId() == id }?.let { notes.deleteNote(it.id, uid) }
+    }
+}
