@@ -21,6 +21,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Microphone foreground service. Its ongoing notification is the Android version of
@@ -31,6 +32,8 @@ import kotlinx.coroutines.launch
  */
 class RewinderService : Service() {
 
+    @Inject lateinit var controller: RewinderController
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var observeJob: Job? = null
     private val notifications by lazy { getSystemService(NOTIFICATION_SERVICE) as NotificationManager }
@@ -39,6 +42,7 @@ class RewinderService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        (application as KnockledgeApplication).component.inject(this)
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Rewinder session",
@@ -52,7 +56,6 @@ class RewinderService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val controller = rewinderGraph.controller
         when (intent?.action) {
             ACTION_STOP -> controller.stop()
             ACTION_REWIND -> controller.rewind()
@@ -83,7 +86,7 @@ class RewinderService : Service() {
     private fun observe() {
         if (observeJob != null) return
         observeJob = scope.launch {
-            rewinderGraph.controller.state
+            controller.state
                 .map {
                     NotificationModel(
                         running = it.isRunning,

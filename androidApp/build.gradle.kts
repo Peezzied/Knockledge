@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.ksp)
 }
 
 dependencies {
@@ -20,6 +21,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.compose.foundation)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.dagger)
+    ksp(libs.dagger.compiler)
 }
 
 android {
