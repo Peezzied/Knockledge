@@ -39,6 +39,7 @@ class NoteRepositoryTest {
         val items = mutableListOf<SyncQueueEntity>()
         override suspend fun insert(item: SyncQueueEntity) { items += item }
         override suspend fun pending(userId: String) = items.filter { it.userId == userId }
+        override suspend fun delete(queueId: String) { items.removeAll { it.queueId == queueId } }
     }
 
     private val dir = createTempDirectory().toFile()

@@ -28,4 +28,7 @@ interface SyncQueueDao {
 
     @Query("SELECT * FROM sync_queue WHERE user_id = :userId AND status != 'PROCESSING' ORDER BY updated_at_epoch_ms")
     suspend fun pending(userId: String): List<SyncQueueEntity>
+
+    @Query("DELETE FROM sync_queue WHERE queue_id = :queueId")
+    suspend fun delete(queueId: String)
 }

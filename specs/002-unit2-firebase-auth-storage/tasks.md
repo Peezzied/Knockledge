@@ -1,4 +1,4 @@
-﻿# Tasks: Unit 2 — Firebase, Auth & Storage
+# Tasks: Unit 2 — Firebase, Auth & Storage
 
 **Input**: Design documents from `/specs/002-unit2-firebase-auth-storage/`
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
@@ -83,13 +83,13 @@
 **Independent Test**: Create offline notes, restore network connection, and verify audio uploaded to Firebase Storage and note documents synced to Firestore without duplicates.
 
 ### Tests for User Story 3
-- [ ] T023 [P] [US3] Write JVM unit tests in `androidApp/src/test/kotlin/two/knockledge/data/SyncEngineTest.kt` verifying sync queue task execution, upload retry backoff, and transition to `SYNCED`.
+- [x] T023 [P] [US3] Write JVM unit tests in `androidApp/src/test/kotlin/two/knockledge/data/SyncEngineTest.kt` verifying sync queue task execution, upload retry backoff, and transition to `SYNCED`.
 
 ### Implementation for User Story 3
-- [ ] T024 [US3] Implement `FirebaseStorageSource` uploading audio WAV files to `/users/{userId}/audio/{noteId}.wav` and returning storage URLs in `androidApp/src/main/kotlin/group/two/knockledge/data/remote/FirebaseStorageSource.kt`
-- [ ] T025 [US3] Implement `FirestoreDataSource` creating and updating documents under `/users/{userId}/notes/{noteId}` per JSON schema in `androidApp/src/main/kotlin/group/two/knockledge/data/remote/FirestoreDataSource.kt`
-- [ ] T026 [US3] Implement `SyncEngine` observing network connectivity, processing `sync_queue` tasks, uploading audio blobs, synchronizing Firestore documents, and setting `syncStatus = SYNCED` in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/SyncEngine.kt`
-- [ ] T027 [US3] Register `SyncEngine` in `KnockledgeApplication.kt` to trigger sync processing within 3 seconds of network availability in `androidApp/src/main/kotlin/group/two/knockledge/KnockledgeApplication.kt`
+- [x] T024 [US3] Implement `FirebaseStorageSource` uploading audio WAV files to `/users/{userId}/audio/{noteId}.wav` and returning storage URLs in `androidApp/src/main/kotlin/group/two/knockledge/data/remote/FirebaseStorageSource.kt`
+- [x] T025 [US3] Implement `FirestoreDataSource` creating and updating documents under `/users/{userId}/notes/{noteId}` per JSON schema in `androidApp/src/main/kotlin/group/two/knockledge/data/remote/FirestoreDataSource.kt`
+- [x] T026 [US3] Implement `SyncEngine` observing network connectivity, processing `sync_queue` tasks, uploading audio blobs, synchronizing Firestore documents, and setting `syncStatus = SYNCED` in `androidApp/src/main/kotlin/group/two/knockledge/data/repository/SyncEngine.kt`
+- [x] T027 [US3] Register `SyncEngine` in `KnockledgeApplication.kt` to trigger sync processing within 3 seconds of network availability in `androidApp/src/main/kotlin/group/two/knockledge/KnockledgeApplication.kt`
 
 **Checkpoint**: User Story 3 complete. Automatic background cloud synchronization works reliably.
 

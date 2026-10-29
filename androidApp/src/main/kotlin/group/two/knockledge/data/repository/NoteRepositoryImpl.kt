@@ -31,6 +31,7 @@ class NoteRepositoryImpl(
     private val audioDir: File,
     private val now: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val onSync: suspend (String) -> Unit = {},
 ) : NoteRepository {
 
     override fun observeNotes(userId: String): Flow<List<Note>> =
@@ -94,7 +95,7 @@ class NoteRepositoryImpl(
         File(note.audioLocalPath).delete()
     }
 
-    override suspend fun syncPending(userId: String) = Unit
+    override suspend fun syncPending(userId: String) = onSync(userId)
 
     private suspend fun update(id: String, userId: String, change: (Note) -> Note): Note {
         val current = requireNotNull(getNote(id, userId)) { "Note not found" }
