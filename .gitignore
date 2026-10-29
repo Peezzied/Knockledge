@@ -1,0 +1,21 @@
+*.iml
+.kotlin
+.gradle
+**/build/
+!src/**/build/
+local.properties
+.idea
+captures
+.externalNativeBuild
+.cxx
+node_modules/
+
+# On-device AI models (1-2 GB each), fetched by scripts/models.sh
+/models/
+
+# CodeGraph local database and runtime files
+.codegraph/
+
+# Spec Kit caches
+.specify/extensions/.cache/
+
