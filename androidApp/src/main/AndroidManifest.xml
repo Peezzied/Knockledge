@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Lets Knockledge clear a stuck system-wide mic mute (left over from some VoIP calls). -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <!-- Only used to download the AI models from Hugging Face once. Audio never leaves the phone. -->
+    <!-- Only used to download the AI models from Hugging Face once. Audio and notes sync only to the signed-in user's own Firebase storage. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- allowBackup=false: summaries never leave the device through cloud backup. -->
+    <!-- allowBackup=false: notes sync only through the app's own Firebase sync, not OS cloud backup. -->
     <application
         android:name=".KnockledgeApplication"
         android:allowBackup="false"
@@ -40,3 +40,4 @@
     </application>
 
 </manifest>
+

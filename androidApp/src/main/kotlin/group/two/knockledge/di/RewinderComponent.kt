@@ -50,8 +50,10 @@ import javax.inject.Singleton
 import org.jetbrains.annotations.Nullable
 
 @Singleton
-@Component(modules = [RewinderModule::class])
+@Component(modules = [RewinderModule::class, DataModule::class])
 interface RewinderComponent {
+    fun data(): DataGraph
+
     fun graph(): RewinderGraph
 
     fun inject(service: RewinderService)
