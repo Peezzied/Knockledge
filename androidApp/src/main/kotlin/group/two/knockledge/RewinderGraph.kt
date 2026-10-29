@@ -3,6 +3,7 @@ package group.two.knockledge
 import group.two.knockledge.ai.AiControls
 import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.SessionHooks
+import group.two.knockledge.core.LocalAudioRingBuffer
 import group.two.knockledge.data.InMemoryRecentsRepository
 import group.two.knockledge.data.RecentsRepository
 import group.two.knockledge.models.ModelProvider
@@ -34,12 +35,14 @@ class RewinderGraph(
         filter: SensitiveFilter = RegexSensitiveFilter(),
         summarizer: Summarizer = PlaceholderSummarizer(),
         recents: RecentsRepository = InMemoryRecentsRepository(),
+        buffer: LocalAudioRingBuffer,
     ) : this(
         controller = RewinderController(
             audioSource = audioSource,
             hooks = hooks,
             pipeline = RewindPipeline(transcriber, filter, summarizer),
             recents = recents,
+            buffer = buffer,
         ),
         recents = recents,
         models = null,
