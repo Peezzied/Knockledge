@@ -15,9 +15,9 @@
 
 **Purpose**: Initialize directory structure and configuration constants for local storage caching.
 
-- [ ] T001 Setup cache directory creation helper for rolling audio buffer in `androidApp/src/main/kotlin/group/two/knockledge/core/AudioStorageUtils.kt`
-- [ ] T002 [P] Update `RewindPolicy.kt` with configurable window limits (`60 <= durationSeconds <= 300`, default `300`) in `androidApp/src/main/kotlin/group/two/knockledge/core/RewindPolicy.kt`
-- [ ] T003 [P] Add buffer duration preferences key and flow (`buffer_duration_seconds`) to `AppSettings.kt` in `androidApp/src/main/kotlin/group/two/knockledge/settings/AppSettings.kt`
+- [x] T001 Setup cache directory creation helper for rolling audio buffer in `androidApp/src/main/kotlin/group/two/knockledge/core/AudioStorageUtils.kt`
+- [x] T002 [P] Update `RewindPolicy.kt` with configurable window limits (`60 <= durationSeconds <= 300`, default `300`) in `androidApp/src/main/kotlin/group/two/knockledge/core/RewindPolicy.kt`
+- [x] T003 [P] Add buffer duration preferences key and flow (`buffer_duration_seconds`) to `AppSettings.kt` in `androidApp/src/main/kotlin/group/two/knockledge/settings/AppSettings.kt`
 
 ---
 
@@ -25,11 +25,11 @@
 
 **Purpose**: Core interfaces, models, and dependency injection modules required before story implementation.
 
-- [ ] T004 Create domain entities (`BufferConfiguration`, `KnockSensorSample`, `KnockGestureEvent`, `AudioSnapshot`) in `androidApp/src/main/kotlin/group/two/knockledge/data/KnockModels.kt`
-- [ ] T005 [P] Define `LocalAudioRingBuffer` interface per contract in `androidApp/src/main/kotlin/group/two/knockledge/core/LocalAudioRingBuffer.kt`
-- [ ] T006 [P] Define `KnockGestureDetector` interface per contract in `androidApp/src/main/kotlin/group/two/knockledge/sensor/KnockGestureDetector.kt`
-- [ ] T007 [P] Define `KnockRecordingUiState` and `KnockRecordingController` interfaces in `androidApp/src/main/kotlin/group/two/knockledge/ui/KnockRecordingController.kt`
-- [ ] T008 [P] Create Dagger DI module `KnockRecordingModule` with `@Binds` bindings in `androidApp/src/main/kotlin/group/two/knockledge/di/KnockRecordingModule.kt`
+- [x] T004 Create domain entities (`BufferConfiguration`, `KnockSensorSample`, `KnockGestureEvent`, `AudioSnapshot`) in `androidApp/src/main/kotlin/group/two/knockledge/data/KnockModels.kt`
+- [x] T005 [P] Define `LocalAudioRingBuffer` interface per contract in `androidApp/src/main/kotlin/group/two/knockledge/core/LocalAudioRingBuffer.kt`
+- [x] T006 [P] Define `KnockGestureDetector` interface per contract in `androidApp/src/main/kotlin/group/two/knockledge/sensor/KnockGestureDetector.kt`
+- [x] T007 [P] Define `KnockRecordingUiState` and `KnockRecordingController` interfaces in `androidApp/src/main/kotlin/group/two/knockledge/ui/KnockRecordingController.kt`
+- [x] T008 [P] Create Dagger DI module `KnockRecordingModule` with `@Binds` bindings in `androidApp/src/main/kotlin/group/two/knockledge/di/KnockRecordingModule.kt`
 
 ---
 
@@ -39,12 +39,12 @@
 **Independent Test**: Configure a 60-second window, stream 180 seconds of audio samples, and verify that disk usage remains bounded by 12 chunks (60 seconds) with older chunks removed automatically.
 
 ### Tests for User Story 2
-- [ ] T009 [P] [US2] Write unit tests in `androidApp/src/test/kotlin/two/knockledge/LocalAudioRingBufferTest.kt` verifying 5-second chunk segmentation, eviction when exceeding `durationSeconds`, and snapshot audio file concatenation.
+- [x] T009 [P] [US2] Write unit tests in `androidApp/src/test/kotlin/two/knockledge/LocalAudioRingBufferTest.kt` verifying 5-second chunk segmentation, eviction when exceeding `durationSeconds`, and snapshot audio file concatenation.
 
 ### Implementation for User Story 2
-- [ ] T010 [US2] Implement `FileLocalAudioRingBuffer` managing 5-second chunk files in `cache/audio_buffer/`, pruning files beyond `durationSeconds`, and exporting concatenated audio in `androidApp/src/main/kotlin/group/two/knockledge/core/FileLocalAudioRingBuffer.kt`
-- [ ] T011 [US2] Update `RewinderController.kt` to replace in-memory `AudioRingBuffer` with `FileLocalAudioRingBuffer` in `androidApp/src/main/kotlin/group/two/knockledge/RewinderController.kt`
-- [ ] T012 [US2] Connect `AppSettings.bufferDuration` updates to dynamic `setWindowSeconds()` in `androidApp/src/main/kotlin/group/two/knockledge/RewinderController.kt`
+- [x] T010 [US2] Implement `FileLocalAudioRingBuffer` managing 5-second chunk files in `cache/audio_buffer/`, pruning files beyond `durationSeconds`, and exporting concatenated audio in `androidApp/src/main/kotlin/group/two/knockledge/core/FileLocalAudioRingBuffer.kt`
+- [x] T011 [US2] Update `RewinderController.kt` to replace in-memory `AudioRingBuffer` with `FileLocalAudioRingBuffer` in `androidApp/src/main/kotlin/group/two/knockledge/RewinderController.kt`
+- [x] T012 [US2] Connect `AppSettings.bufferDuration` updates to dynamic `setWindowSeconds()` in `androidApp/src/main/kotlin/group/two/knockledge/RewinderController.kt`
 
 **Checkpoint**: User Story 2 complete. Continuous audio records directly to disk cache and evicts old data without RAM leakage.
 
@@ -56,11 +56,11 @@
 **Independent Test**: Feed simulated linear acceleration sensor samples to verify that peaks exceeding `12.0 m/s^2` spaced between `100 ms` and `400 ms` trigger a save event, while single peaks or 2000 ms debounce periods do not re-trigger.
 
 ### Tests for User Story 1
-- [ ] T013 [P] [US1] Write unit tests in `androidApp/src/test/kotlin/two/knockledge/KnockGestureDetectorTest.kt` simulating acceleration time-series for peak threshold (`12.0 m/s^2`), timing window (`100 ms <= delta <= 400 ms`), and 2000 ms debounce rejection.
+- [x] T013 [P] [US1] Write unit tests in `androidApp/src/test/kotlin/two/knockledge/KnockGestureDetectorTest.kt` simulating acceleration time-series for peak threshold (`12.0 m/s^2`), timing window (`100 ms <= delta <= 400 ms`), and 2000 ms debounce rejection.
 
 ### Implementation for User Story 1
-- [ ] T014 [US1] Implement `AndroidKnockGestureDetector` using `Sensor.TYPE_LINEAR_ACCELERATION` (with accelerometer gravity filtering fallback) and 50 ms vibration pulse in `androidApp/src/main/kotlin/group/two/knockledge/sensor/AndroidKnockGestureDetector.kt`
-- [ ] T015 [US1] Wire `KnockGestureDetector` into `RewinderService` in `androidApp/src/main/kotlin/group/two/knockledge/KnockledgeService.kt` to start listening when recording begins and trigger `rewind()` snapshot on knock detection
+- [x] T014 [US1] Implement `AndroidKnockGestureDetector` using `Sensor.TYPE_LINEAR_ACCELERATION` (with accelerometer gravity filtering fallback) and 50 ms vibration pulse in `androidApp/src/main/kotlin/group/two/knockledge/sensor/AndroidKnockGestureDetector.kt`
+- [x] T015 [US1] Wire `KnockGestureDetector` into `RewinderService` in `androidApp/src/main/kotlin/group/two/knockledge/KnockledgeService.kt` to start listening when recording begins and trigger `rewind()` snapshot on knock detection
 
 **Checkpoint**: User Story 1 complete. Double knocks trigger haptic vibration and save preceding audio from the local cache.
 
@@ -72,11 +72,11 @@
 **Independent Test**: Render Compose UI with preview, simulate tapping the manual save button, and verify that `KnockRecordingUiState` updates to saving snapshot and invokes controller snapshot export.
 
 ### Tests for User Story 3
-- [ ] T016 [P] [US3] Write unit test in `androidApp/src/test/kotlin/two/knockledge/KnockRecordingViewModelTest.kt` verifying manual trigger action and `StateFlow<KnockRecordingUiState>` state transitions.
+- [x] T016 [P] [US3] Write unit test in `androidApp/src/test/kotlin/two/knockledge/KnockRecordingViewModelTest.kt` verifying manual trigger action and `StateFlow<KnockRecordingUiState>` state transitions.
 
 ### Implementation for User Story 3
-- [ ] T017 [US3] Implement `KnockRecordingViewModel` exposing immutable `StateFlow<KnockRecordingUiState>` and `triggerManualSave()` in `androidApp/src/main/kotlin/group/two/knockledge/ui/KnockRecordingViewModel.kt`
-- [ ] T018 [US3] Build Compose manual trigger button and buffer duration slider with `@Preview` functions in `androidApp/src/main/kotlin/group/two/knockledge/ui/RecordingControls.kt`
+- [x] T017 [US3] Implement `KnockRecordingViewModel` exposing immutable `StateFlow<KnockRecordingUiState>` and `triggerManualSave()` in `androidApp/src/main/kotlin/group/two/knockledge/ui/KnockRecordingViewModel.kt`
+- [x] T018 [US3] Build Compose manual trigger button and buffer duration slider with `@Preview` functions in `androidApp/src/main/kotlin/group/two/knockledge/ui/RecordingControls.kt`
 
 **Checkpoint**: All user stories complete and testable independently.
 
