@@ -11,8 +11,6 @@ import group.two.knockledge.pipeline.SummarizerPrompt
 import group.two.knockledge.pipeline.Summary
 import group.two.knockledge.pipeline.SummaryParser
 import group.two.knockledge.pipeline.SummaryRequest
-import group.two.knockledge.pipeline.Transcriber
-import group.two.knockledge.pipeline.Transcript
 import group.two.knockledge.pipeline.TranscriptCleaner
 import group.two.knockledge.pipeline.TranscriptionHints
 import group.two.knockledge.settings.SummaryLanguages
@@ -77,11 +75,11 @@ class OnDeviceTranscriber(
     private val files: ModelFiles,
     private val threads: Int,
     private val language: () -> String = { TranscriptionLanguages.FILIPINO },
-) : Transcriber {
-    override suspend fun transcribe(pcm: ShortArray, sampleRate: Int): Transcript =
+) {
+    suspend fun transcribe(pcm: ShortArray): String =
         withContext(Dispatchers.Default) {
             val model = files.pathOf(ModelCatalog.whisper)
-                ?: return@withContext Transcript(text = "", looksLikeConversation = false)
+                ?: return@withContext ""
             val lang = language()
             val raw = engine.transcribe(
                 modelPath = model,
@@ -91,7 +89,7 @@ class OnDeviceTranscriber(
                 vadModelPath = files.pathOf(ModelCatalog.vad),
                 threads = threads,
             )
-            Transcript(text = TranscriptCleaner.clean(raw), looksLikeConversation = false)
+            TranscriptCleaner.clean(raw)
         }
 }
 

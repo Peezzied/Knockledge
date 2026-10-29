@@ -1,19 +1,7 @@
 package group.two.knockledge.pipeline
 
-import group.two.knockledge.core.AudioGain
 import group.two.knockledge.core.formatDuration
 import group.two.knockledge.settings.SummaryLanguages
-
-/** Speech to text, on device. Implementations must not persist audio or text. */
-interface Transcriber {
-    suspend fun transcribe(pcm: ShortArray, sampleRate: Int): Transcript
-}
-
-data class Transcript(
-    val text: String,
-    /** True when more than one voice or turn-taking was detected. No speaker labels. */
-    val looksLikeConversation: Boolean,
-)
 
 /** Local LLM. Input is the filtered transcript, output is the only thing a user ever sees. */
 interface Summarizer {
@@ -53,23 +41,25 @@ class RewindPipeline(
         onStage: (RewindStage) -> Unit = {},
     ): Summary {
         onStage(RewindStage.Transcribing)
-        AudioGain.normalizeInPlace(pcm)
         val transcript = try {
             transcriber.transcribe(pcm, sampleRate)
         } finally {
             pcm.fill(0)
         }
-        val filtered = filter.filter(transcript.text)
+        val filtered = filter.filter(labeled(transcript))
         onStage(RewindStage.Summarizing)
         return summarizer.summarize(
             SummaryRequest(
                 filteredTranscript = filtered.text,
-                looksLikeConversation = transcript.looksLikeConversation,
+                looksLikeConversation = transcript.isDiarized,
                 redactedCount = filtered.redactedCount,
                 durationMillis = durationMillis,
             )
         )
     }
+
+    private fun labeled(t: TranscriptResult): String =
+        if (t.isDiarized) t.sentences.joinToString("\n") { "${it.speaker}: ${it.text}" } else t.fullText
 }
 
 /**
@@ -83,10 +73,10 @@ object SummarizerPrompt {
     /** System prompt. [outputLanguage] is one of [SummaryLanguages]. */
     fun system(outputLanguage: String = SummaryLanguages.AUTO): String = """
         You help a person with ADHD catch up on what was said around them in the last few minutes.
-        You get a rough automatic transcript. It may be in Filipino, English or Taglish, it may contain recognition mistakes, and it never says who is speaking.
+        You get a rough automatic transcript. It may be in Filipino, English or Taglish, it may contain recognition mistakes, and it may label turns as Speaker 1, Speaker 2 when voices were told apart.
         Rules:
         - Paraphrase. Never quote sentences or copy the original wording.
-        - Do not say who said what. Describe the conversation as a whole.
+        - Speaker labels are only turn markers. Do not guess names. You may say that one speaker said or asked something.
         - Never repeat, guess or describe anything written as [sensitive detail]. You may say that a sensitive detail came up.
         - ${languageRule(outputLanguage)}
         - Be short and concrete: topics, decisions, and anything the listener was asked to do.
