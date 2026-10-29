@@ -3,7 +3,8 @@ package group.two.knockledge
 import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.SessionHooks
 import group.two.knockledge.core.AudioGain
-import group.two.knockledge.core.AudioRingBuffer
+import group.two.knockledge.core.FileLocalAudioRingBuffer
+import group.two.knockledge.core.LocalAudioRingBuffer
 import group.two.knockledge.core.RewindPolicy
 import group.two.knockledge.data.RecentsRepository
 import group.two.knockledge.pipeline.RewindPipeline
@@ -27,6 +28,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.log10
 import kotlin.math.sqrt
 import kotlin.time.Clock
@@ -34,8 +38,9 @@ import kotlin.time.ExperimentalTime
 
 data class RewinderState(
     val isRunning: Boolean = false,
-    /** Audio in memory since Start, capped at the 5 minute window. Every Rewind uses all of it. */
+    /** Audio cached on disk since Start, capped at the configured window. Every Rewind uses all of it. */
     val bufferedMillis: Long = 0L,
+    val windowMillis: Long = RewindPolicy.WINDOW_MILLIS,
     /** Rewinds captured but not yet summarized (they run one at a time, in order). */
     val pendingRewinds: Int = 0,
     /** Current input level, 0..1 on a decibel scale. Drives the VU meter. */
@@ -53,7 +58,7 @@ data class RewinderState(
 
     /** Only the 3 minute minimum applies. Rewinds may overlap and may be tapped while others process. */
     val canRewind: Boolean
-        get() = isRunning && bufferedMillis >= RewindPolicy.MIN_REWIND_MILLIS
+        get() = isRunning && bufferedMillis >= minOf(RewindPolicy.MIN_REWIND_MILLIS, windowMillis)
 
     /** 0..1 progress toward unlocking Rewind. */
     val unlockProgress: Float
@@ -75,11 +80,12 @@ class RewinderController(
     private val hooks: SessionHooks,
     private val pipeline: RewindPipeline,
     private val recents: RecentsRepository,
+    private val buffer: LocalAudioRingBuffer,
+    windowSeconds: StateFlow<Int> = MutableStateFlow(RewindPolicy.WINDOW_SECONDS),
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val audioDispatcher = Dispatchers.Default.limitedParallelism(1)
-    private val buffer = AudioRingBuffer(RewindPolicy.SAMPLE_RATE, RewindPolicy.WINDOW_SECONDS)
     private var level = 0f
     private var captureJob: Job? = null
     private val pipelineLock = Mutex()
@@ -93,12 +99,21 @@ class RewinderController(
 
     private val _created = MutableSharedFlow<Long>(extraBufferCapacity = 4)
 
+    init {
+        scope.launch(audioDispatcher) {
+            windowSeconds.collect { seconds ->
+                buffer.setWindowSeconds(seconds)
+                _state.update { it.copy(windowMillis = seconds * 1000L) }
+            }
+        }
+    }
+
     /** Emits the id of each new Recent, so the UI can open it. */
     val createdRecents: SharedFlow<Long> = _created.asSharedFlow()
 
     fun start() {
         if (captureJob?.isActive == true) return
-        _state.value = RewinderState(isRunning = true)
+        _state.value = RewinderState(isRunning = true, windowMillis = _state.value.windowMillis)
         silentMillis = 0L
         silenceReported = false
         hooks.onSessionStarted()
@@ -119,7 +134,7 @@ class RewinderController(
                                 it
                             }
                             withStatus.copy(
-                                bufferedMillis = buffer.millisSinceCut(),
+                                bufferedMillis = buffer.bufferedMillis(),
                                 level = level,
                                 inputDb = lastDb.toInt(),
                             )
@@ -145,7 +160,7 @@ class RewinderController(
         }
         scope.launch(audioDispatcher) {
             job.cancelAndJoin()
-            buffer.wipe()
+            buffer.clear()
             level = 0f
         }
         hooks.onSessionStopped()
@@ -157,14 +172,14 @@ class RewinderController(
      * Captures the last (up to) 5 minutes right now and summarizes it. Windows overlap:
      * nothing is cut, so two rewinds a minute apart share four minutes of audio.
      * Snapshots are taken instantly; summaries run one at a time so only one model is
-     * ever loaded. Ignored until 3 minutes are in memory.
+     * ever loaded. Ignored until 3 minutes (or the whole window, if shorter) are cached.
      */
     fun rewind() {
         if (!_state.value.canRewind) return
         _state.update { it.copy(pendingRewinds = it.pendingRewinds + 1) }
         scope.launch {
             try {
-                val pcm = withContext(audioDispatcher) { buffer.snapshotSinceCut() }
+                val pcm = withContext(audioDispatcher) { readPcm(buffer.snapshot()) }
                 val endedAt = nowMillis()
                 val durationMillis = pcm.size * 1000L / RewindPolicy.SAMPLE_RATE
                 pipelineLock.withLock {
@@ -185,6 +200,16 @@ class RewinderController(
                 }
             }
         }
+    }
+
+    private fun readPcm(wav: File): ShortArray = try {
+        val bytes = wav.readBytes()
+        val offset = FileLocalAudioRingBuffer.WAV_HEADER_BYTES
+        ShortArray((bytes.size - offset) / 2).also {
+            ByteBuffer.wrap(bytes, offset, it.size * 2).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(it)
+        }
+    } finally {
+        wav.delete()
     }
 
     fun delete(id: Long) {

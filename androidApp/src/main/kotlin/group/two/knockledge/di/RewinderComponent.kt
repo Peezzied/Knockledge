@@ -34,6 +34,7 @@ import group.two.knockledge.audio.AndroidDeviceAudioSource
 import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.MixedAudioSource
 import group.two.knockledge.audio.SessionHooks
+import group.two.knockledge.core.LocalAudioRingBuffer
 import group.two.knockledge.data.RecentsRepository
 import group.two.knockledge.data.StoredRecentsRepository
 import group.two.knockledge.models.ModelCatalog
@@ -56,7 +57,11 @@ import javax.inject.Singleton
 import org.jetbrains.annotations.Nullable
 
 @Singleton
+<<<<<<< HEAD
 @Component(modules = [RewinderModule::class, DataModule::class])
+=======
+@Component(modules = [RewinderModule::class, KnockRecordingModule::class])
+>>>>>>> feat/004
 interface RewinderComponent {
     fun data(): DataGraph
 
@@ -209,7 +214,10 @@ object RewinderModule {
         hooks: SessionHooks,
         pipeline: RewindPipeline,
         recents: RecentsRepository,
-    ): RewinderController = RewinderController(audioSource, hooks, pipeline, recents)
+        buffer: LocalAudioRingBuffer,
+        settings: AppSettings,
+    ): RewinderController =
+        RewinderController(audioSource, hooks, pipeline, recents, buffer, settings.bufferDurationSeconds)
 
     @Provides
     @Singleton

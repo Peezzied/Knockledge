@@ -13,6 +13,7 @@ import android.os.IBinder
 import group.two.knockledge.audio.DeviceAudioConsent
 import group.two.knockledge.core.RewindPolicy
 import group.two.knockledge.core.formatDuration
+import group.two.knockledge.sensor.KnockGestureDetector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,6 +34,7 @@ import javax.inject.Inject
 class RewinderService : Service() {
 
     @Inject lateinit var controller: RewinderController
+    @Inject lateinit var knock: KnockGestureDetector
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var observeJob: Job? = null
@@ -79,7 +81,7 @@ class RewinderService : Service() {
                 observe()
             }
         }
-        // If the process dies, the in-memory buffer is gone anyway. Do not restart.
+        // If the process dies, cached chunks are wiped on the next start. Do not restart.
         return START_NOT_STICKY
     }
 
@@ -97,7 +99,9 @@ class RewinderService : Service() {
                 }
                 .distinctUntilChanged()
                 .collect { model ->
+                    if (model.running && !knock.isListening) knock.startListening { controller.rewind() }
                     if (!model.running) {
+                        knock.stopListening()
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
                     } else {
@@ -155,6 +159,7 @@ class RewinderService : Service() {
 
     override fun onDestroy() {
         DeviceAudioConsent.foregroundReady = false
+        knock.stopListening()
         scope.cancel()
         super.onDestroy()
     }
