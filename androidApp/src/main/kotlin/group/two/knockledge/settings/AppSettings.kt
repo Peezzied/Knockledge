@@ -1,5 +1,6 @@
 package group.two.knockledge.settings
 
+import group.two.knockledge.core.RewindPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +70,17 @@ class AppSettings(
     private val _inputSource = MutableStateFlow(store.getString(KEY_INPUT) ?: InputSources.MIC)
     val inputSource: StateFlow<String> = _inputSource.asStateFlow()
 
+    private val _bufferDurationSeconds = MutableStateFlow(
+        RewindPolicy.clampWindowSeconds(store.getString(KEY_BUFFER)?.toIntOrNull() ?: RewindPolicy.WINDOW_SECONDS),
+    )
+    val bufferDurationSeconds: StateFlow<Int> = _bufferDurationSeconds.asStateFlow()
+
+    fun setBufferDurationSeconds(seconds: Int) {
+        val clamped = RewindPolicy.clampWindowSeconds(seconds)
+        store.putString(KEY_BUFFER, clamped.toString())
+        _bufferDurationSeconds.value = clamped
+    }
+
     fun setSummaryModel(id: String) {
         store.putString(KEY_SUMMARY, id)
         _summaryModel.value = id
@@ -95,6 +107,7 @@ class AppSettings(
         const val KEY_LANGUAGE = "transcription_language"
         const val KEY_SUMMARY_LANGUAGE = "summary_language"
         const val KEY_INPUT = "input_source"
+        const val KEY_BUFFER = "buffer_duration_seconds"
     }
 }
 

@@ -15,6 +15,12 @@ object RewindPolicy {
 
     const val MIN_REWIND_MILLIS: Long = MIN_REWIND_SECONDS * 1000L
     const val WINDOW_MILLIS: Long = WINDOW_SECONDS * 1000L
+
+    const val MIN_WINDOW_SECONDS: Int = 60
+    const val MAX_WINDOW_SECONDS: Int = 5 * 60
+    const val CHUNK_SECONDS: Int = 5
+
+    fun clampWindowSeconds(seconds: Int): Int = seconds.coerceIn(MIN_WINDOW_SECONDS, MAX_WINDOW_SECONDS)
 }
 
 /** 161_000 -> "2:41". Used for countdowns and buffer labels. */
