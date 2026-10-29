@@ -4,6 +4,8 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import dagger.BindsInstance
 import dagger.Component
@@ -16,6 +18,8 @@ import group.two.knockledge.ai.AiControls
 import group.two.knockledge.ai.AndroidModelStorage
 import group.two.knockledge.ai.AndroidSpeechEngine
 import group.two.knockledge.ai.AndroidTextEngine
+import group.two.knockledge.ai.FirebaseAiTranscriber
+import group.two.knockledge.ai.FirebaseGeminiClient
 import group.two.knockledge.ai.HttpModelDownloader
 import group.two.knockledge.ai.OnDeviceSummarizer
 import group.two.knockledge.ai.OnDeviceTranscriber
@@ -23,6 +27,7 @@ import group.two.knockledge.ai.PrefsStore
 import group.two.knockledge.ai.SpeechEngine
 import group.two.knockledge.ai.SystemModelEngine
 import group.two.knockledge.ai.TextEngine
+import group.two.knockledge.ai.WhisperTranscriberAdapter
 import group.two.knockledge.ai.inferenceThreads
 import group.two.knockledge.audio.AndroidAudioSource
 import group.two.knockledge.audio.AndroidDeviceAudioSource
@@ -37,6 +42,7 @@ import group.two.knockledge.models.ModelFiles
 import group.two.knockledge.models.ModelProvider
 import group.two.knockledge.models.ModelStorage
 import group.two.knockledge.models.ModelStore
+import group.two.knockledge.pipeline.CompositeTranscriber
 import group.two.knockledge.pipeline.RegexSensitiveFilter
 import group.two.knockledge.pipeline.RewindPipeline
 import group.two.knockledge.pipeline.SensitiveFilter
@@ -122,12 +128,23 @@ object RewinderModule {
 
     @Provides
     @Singleton
-    fun transcriber(
+    fun onDeviceTranscriber(
         engine: SpeechEngine,
         files: ModelFiles,
         @Named("inferenceThreads") threads: Int,
         settings: AppSettings,
-    ): Transcriber = OnDeviceTranscriber(engine, files, threads) { settings.language.value }
+    ): OnDeviceTranscriber = OnDeviceTranscriber(engine, files, threads) { settings.language.value }
+
+    @Provides
+    @Singleton
+    fun transcriber(onDevice: OnDeviceTranscriber, app: Application): Transcriber {
+        val cm = app.getSystemService(ConnectivityManager::class.java)
+        return CompositeTranscriber(
+            online = FirebaseAiTranscriber(FirebaseGeminiClient()),
+            offline = WhisperTranscriberAdapter { onDevice.transcribe(it) },
+            isOnline = { cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true },
+        )
+    }
 
     @Provides
     @Singleton
