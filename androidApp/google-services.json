@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "938598507214",
+    "project_id": "knockledge-8b0d6",
+    "storage_bucket": "knockledge-8b0d6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:938598507214:android:1f349330dd58a935cce69f",
+        "android_client_info": {
+          "package_name": "group.two.knockledge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9tp7UMpuYIGtKHmvIlEbjC5GICkjsYto"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

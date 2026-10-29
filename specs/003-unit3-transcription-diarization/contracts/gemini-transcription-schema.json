@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GeminiTranscriptionResponse",
+  "description": "Structured JSON schema returned by Firebase AI (Gemini 1.5 Flash) for audio transcription and diarization",
+  "type": "object",
+  "properties": {
+    "detectedLanguage": {
+      "type": "string",
+      "description": "Primary detected language (e.g. en, fil, taglish)"
+    },
+    "sentences": {
+      "type": "array",
+      "description": "Ordered sequence of transcribed sentences with speaker turns",
+      "items": {
+        "type": "object",
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "description": "Speaker label, e.g. Speaker 1, Speaker 2"
+          },
+          "startTimeMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Start timestamp in milliseconds"
+          },
+          "endTimeMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "End timestamp in milliseconds"
+          },
+          "text": {
+            "type": "string",
+            "description": "Transcribed utterance"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "description": "Confidence estimate"
+          }
+        },
+        "required": ["speaker", "startTimeMs", "endTimeMs", "text"]
+      }
+    }
+  },
+  "required": ["detectedLanguage", "sentences"]
+}
