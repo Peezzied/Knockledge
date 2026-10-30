@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="knock_midnight">#14122B</color>
+    <color name="knock_indigo">#1E1B3A</color>
+    <color name="knock_indigo_high">#2A2650</color>
+    <color name="knock_cream">#F2E8D0</color>
+    <color name="knock_cream_dim">#B9B09A</color>
+    <color name="knock_brass">#B8913F</color>
+    <color name="knock_gold">#D4AF5A</color>
+    <color name="knock_ink">#1B1833</color>
+    <color name="knock_glitch_pink">#FF3D9A</color>
+    <color name="knock_glitch_teal">#2DE2D0</color>
+    <color name="knock_error">#FF6B6B</color>
+</resources>
