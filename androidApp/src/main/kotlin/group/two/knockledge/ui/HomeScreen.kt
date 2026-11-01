@@ -1,7 +1,9 @@
 package group.two.knockledge.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,7 +36,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,15 +55,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import group.two.knockledge.R
 import group.two.knockledge.audio.AudioPlaybackState
-import group.two.knockledge.data.model.AiEngineType
-import group.two.knockledge.data.model.AudioMetadata
 import group.two.knockledge.data.model.ChapterMarker
 import group.two.knockledge.data.model.Note
-import group.two.knockledge.data.model.SummaryMetadata
 import group.two.knockledge.data.model.TriggerType
 import group.two.knockledge.data.remote.GoogleIdTokenClient
 import group.two.knockledge.di.KnockledgeComponent
@@ -77,9 +76,17 @@ import group.two.knockledge.ui.settings.SettingsViewModel
 import group.two.knockledge.ui.tabs.SettingsTab
 import group.two.knockledge.ui.theme.AccentGold
 import group.two.knockledge.ui.theme.AntiqueBrass
+import group.two.knockledge.ui.theme.KiwiSoda
 import group.two.knockledge.ui.theme.KnockledgeTheme
+import group.two.knockledge.ui.theme.MutedSand
 import group.two.knockledge.ui.theme.ObsidianMidnight
+import group.two.knockledge.ui.theme.OutlineVariant
 import group.two.knockledge.ui.theme.ParchmentCream
+import group.two.knockledge.ui.theme.SurfaceContainer
+import group.two.knockledge.ui.theme.SurfaceContainerHigh
+import group.two.knockledge.ui.theme.SurfaceIndigo
+import group.two.knockledge.ui.theme.TextInk
+import group.two.knockledge.ui.theme.VcrOsdMono
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -344,34 +351,38 @@ fun NoteListItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onSelectNote(note) },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            },
+            containerColor = if (isSelected) SurfaceContainerHigh else SurfaceIndigo,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isSelected) AntiqueBrass else OutlineVariant,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 0.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .background(if (isPlayingThisNote) AccentGold else SurfaceContainerHigh)
+                    .border(
+                        BorderStroke(1.dp, if (isPlayingThisNote) AccentGold else OutlineVariant),
+                        CircleShape,
+                    )
                     .clickable { onTogglePlayNote(note) },
                 contentAlignment = Alignment.Center,
             ) {
                 if (isPlayingThisNote) {
-                    PauseBarsIcon(tint = MaterialTheme.colorScheme.onSurface)
+                    PauseBarsIcon(tint = TextInk)
                 } else {
-                    PlayTriangleIcon(tint = MaterialTheme.colorScheme.onSurface)
+                    PlayTriangleIcon(tint = ParchmentCream)
                 }
             }
 
@@ -380,27 +391,51 @@ fun NoteListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = formattedTitle,
+                    fontFamily = KiwiSoda,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = ParchmentCream,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtext,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = subtext,
+                        fontFamily = VcrOsdMono,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 12.sp,
+                        ),
+                        color = MutedSand,
+                    )
+                    if (note.summary != null) {
+                        Surface(
+                            shape = RoundedCornerShape(2.dp),
+                            color = AntiqueBrass.copy(alpha = 0.2f),
+                            border = BorderStroke(0.5.dp, AntiqueBrass.copy(alpha = 0.6f)),
+                        ) {
+                            Text(
+                                text = "AI",
+                                fontFamily = VcrOsdMono,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentGold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
+                }
             }
 
             IconButton(
                 onClick = { onDeleteNote(note.id) },
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(48.dp),
             ) {
-                TrashBinIcon(tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
+                TrashBinIcon(tint = MaterialTheme.colorScheme.error.copy(alpha = 0.85f))
             }
         }
     }
@@ -452,6 +487,7 @@ fun RecordFloatingActionButton(
         modifier = modifier.size(88.dp),
         shape = CircleShape,
         color = ObsidianMidnight,
+        border = BorderStroke(1.5.dp, AntiqueBrass),
         shadowElevation = 12.dp,
     ) {
         Box(
@@ -502,6 +538,7 @@ fun HomeScreen(
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             RecordFloatingActionButton(
@@ -574,71 +611,72 @@ fun HomeRecordingsContent(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
         ) {
-            // Top Header Row: Recordings title on left, Settings gear icon on top-right
+            // Header: "Recordings" (KiwiSoda 32sp) + settings gear
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 12.dp),
+                    .padding(top = 16.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = "Recordings",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = KiwiSoda,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = ParchmentCream,
                 )
                 IconButton(
                     onClick = onNavigateToSettings,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(48.dp),
                 ) {
                     SettingsGearIcon(
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(28.dp),
+                        tint = AntiqueBrass,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
             }
 
-            // Search Bar
+            // Search Bar: SurfaceIndigo fill, AntiqueBrass focused border, 8dp corner
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = {
                     Text(
                         text = "Search all recordings",
+                        fontFamily = VcrOsdMono,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MutedSand.copy(alpha = 0.7f),
                     )
                 },
                 leadingIcon = {
-                    SearchLensIcon(tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SearchLensIcon(tint = MutedSand)
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            ClearCrossIcon(tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            ClearCrossIcon(tint = MutedSand)
                         }
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(8.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = SurfaceIndigo,
+                    unfocusedContainerColor = SurfaceContainer,
+                    focusedBorderColor = AntiqueBrass,
+                    unfocusedBorderColor = OutlineVariant,
+                    focusedTextColor = ParchmentCream,
+                    unfocusedTextColor = ParchmentCream,
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 10.dp),
             )
 
-            // Filter Category Chips
+            // Filter Chips: active = AntiqueBrass bg with TextInk label; inactive = outlined
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                contentPadding = PaddingValues(bottom = 10.dp),
             ) {
                 items(categories) { category ->
                     val isSelected = selectedCategory == category
@@ -648,23 +686,24 @@ fun HomeRecordingsContent(
                         label = {
                             Text(
                                 text = category,
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                fontFamily = VcrOsdMono,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontSize = 12.sp,
                                 ),
                             )
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(4.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+                            selectedContainerColor = AntiqueBrass,
+                            selectedLabelColor = TextInk,
                             containerColor = Color.Transparent,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            labelColor = MutedSand,
                         ),
                         border = FilterChipDefaults.filterChipBorder(
                             enabled = true,
                             selected = isSelected,
-                            borderColor = Color.Transparent,
-                            selectedBorderColor = Color.Transparent,
+                            borderColor = OutlineVariant,
+                            selectedBorderColor = AntiqueBrass,
                         ),
                     )
                 }
@@ -676,15 +715,17 @@ fun HomeRecordingsContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 12.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(4.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        containerColor = SurfaceIndigo,
                     ),
+                    border = BorderStroke(1.dp, OutlineVariant),
                 ) {
                     Text(
                         text = stringResource(R.string.no_notes_found),
+                        fontFamily = VcrOsdMono,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MutedSand,
                         modifier = Modifier.padding(16.dp),
                     )
                 }
@@ -693,8 +734,8 @@ fun HomeRecordingsContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 104.dp),
                 ) {
                     items(
                         items = filteredNotes,
@@ -723,16 +764,28 @@ fun HomeRecordingsContent(
                     // Selected Note Detail Section
                     if (selectedNote != null) {
                         item {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider()
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(color = OutlineVariant)
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                            Text(
-                                text = "Playback: ${selectedNote.title.ifBlank { rememberFormattedDateTitle(selectedNote.createdAtEpochMs) }}",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            // Note detail header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = selectedNote.title.ifBlank {
+                                        rememberFormattedDateTitle(selectedNote.createdAtEpochMs)
+                                    },
+                                    fontFamily = KiwiSoda,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = ParchmentCream,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
                             AudioPlaybackControls(
                                 state = playbackState,
                                 chapters = selectedNote.summary?.chapterMarkers ?: emptyList(),
@@ -744,7 +797,7 @@ fun HomeRecordingsContent(
                         }
 
                         item {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             NoteProcessingControls(
                                 uiState = processingUiState,
                                 onProcessNote = { onProcessNote(selectedNote.id) },
@@ -752,56 +805,67 @@ fun HomeRecordingsContent(
                         }
 
                         item {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            // AI Intelligence card: SurfaceContainerHigh with brass border
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(4.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    containerColor = SurfaceContainerHigh,
                                 ),
+                                border = BorderStroke(1.dp, OutlineVariant),
                             ) {
                                 Column(
                                     modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
                                 ) {
                                     Text(
                                         text = stringResource(R.string.ai_intelligence_title),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = KiwiSoda,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = AccentGold,
                                     )
+
+                                    HorizontalDivider(color = OutlineVariant)
 
                                     Text(
                                         text = stringResource(R.string.summary_label),
+                                        fontFamily = KiwiSoda,
                                         style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
+                                        color = AntiqueBrass,
                                     )
                                     val summary = selectedNote.summary
                                     if (summary != null) {
                                         Text(
                                             text = summary.executiveSummary,
+                                            fontFamily = VcrOsdMono,
                                             style = MaterialTheme.typography.bodyMedium,
+                                            color = ParchmentCream,
                                         )
                                         if (summary.keyPoints.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
                                                 text = stringResource(R.string.key_bullet_points),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = KiwiSoda,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = AntiqueBrass,
                                             )
                                             summary.keyPoints.forEach { point ->
                                                 Text(
                                                     text = "• $point",
+                                                    fontFamily = VcrOsdMono,
                                                     style = MaterialTheme.typography.bodySmall,
+                                                    color = ParchmentCream,
                                                 )
                                             }
                                         }
                                     } else {
                                         Text(
                                             text = stringResource(R.string.no_summary),
+                                            fontFamily = VcrOsdMono,
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = MutedSand,
                                         )
-
                                     }
                                 }
                             }
