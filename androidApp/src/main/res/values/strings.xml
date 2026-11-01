@@ -125,4 +125,8 @@
     <string name="notification_action_cancel_stop">Keep recording</string>
     <string name="notification_confirm_stop_compact_keep">Keep</string>
     <string name="notification_confirm_stop_compact_stop">Stop</string>
+    <string name="key_takeaway_label">Key Takeaway</string>
+    <string name="badge_unprocessed">UNPROCESSED</string>
+    <string name="badge_processing">PROCESSING</string>
+    <string name="badge_saved">SAVED</string>
 </resources>

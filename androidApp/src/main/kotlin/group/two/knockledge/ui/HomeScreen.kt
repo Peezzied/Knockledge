@@ -1,6 +1,5 @@
 package group.two.knockledge.ui
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -15,15 +14,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.navigation.NavBackStackEntry
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +37,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
@@ -53,7 +48,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,27 +60,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import group.two.knockledge.R
 import group.two.knockledge.audio.AudioPlaybackState
-import group.two.knockledge.data.model.AiEngineType
-import group.two.knockledge.data.model.AudioMetadata
 import group.two.knockledge.data.model.ChapterMarker
 import group.two.knockledge.data.model.Note
-import group.two.knockledge.data.model.SummaryMetadata
-import group.two.knockledge.data.model.TriggerType
 import group.two.knockledge.data.remote.GoogleIdTokenClient
 import group.two.knockledge.di.KnockledgeComponent
+import group.two.knockledge.pipeline.RewindStage
 import group.two.knockledge.ui.auth.AuthScreen
 import group.two.knockledge.ui.auth.AuthViewModel
 import group.two.knockledge.ui.playback.AudioPlaybackControls
@@ -98,9 +93,14 @@ import group.two.knockledge.ui.settings.SettingsViewModel
 import group.two.knockledge.ui.tabs.SettingsTab
 import group.two.knockledge.ui.theme.AccentGold
 import group.two.knockledge.ui.theme.AntiqueBrass
+import group.two.knockledge.ui.theme.BurnishedBronze
+import group.two.knockledge.ui.theme.BurnishedBronzeBtn
+import group.two.knockledge.ui.theme.BurnishedBronzeInset
 import group.two.knockledge.ui.theme.KnockledgeTheme
 import group.two.knockledge.ui.theme.ObsidianMidnight
+import group.two.knockledge.ui.theme.OutlineVariant
 import group.two.knockledge.ui.theme.ParchmentCream
+import group.two.knockledge.ui.theme.WaveformTeal
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -338,14 +338,62 @@ private fun rememberFormattedDateTitle(epochMs: Long): String {
     return formatter.format(Date(epochMs))
 }
 
+/**
+ * Renders an audio frequency waveform with vertical bars expanding horizontally
+ * across the entire available width. When playing, the bars animate in a wave motion.
+ */
 @Composable
-private fun rememberFormattedSubtext(epochMs: Long, durationMs: Long): String {
-    val dateFmt = remember(epochMs) {
-        SimpleDateFormat("M/d/yy", Locale.US)
+fun WaveformBarVisualizer(
+    modifier: Modifier = Modifier,
+    barColor: Color = AccentGold,
+    isPlaying: Boolean = false,
+    seed: Long = 0L,
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "waveformMotion")
+    val wavePhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "wavePhase",
+    )
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val barWidth = 3.dp.toPx()
+        val minGap = 2.dp.toPx()
+        val numBars = ((w + minGap) / (barWidth + minGap)).toInt().coerceAtLeast(8)
+        val actualGap = if (numBars > 1) (w - numBars * barWidth) / (numBars - 1) else 0f
+
+        for (i in 0 until numBars) {
+            val progress = i.toFloat() / (numBars - 1).coerceAtLeast(1)
+            val baseEnvelope = 0.3f + 0.65f * kotlin.math.sin(progress * Math.PI.toFloat()).coerceIn(0f, 1f)
+            val subHarmonic = 0.2f * kotlin.math.cos(progress * 5 * Math.PI.toFloat())
+            val staticHeightFactor = (baseEnvelope + subHarmonic).coerceIn(0.18f, 1f)
+
+            val heightFactor = if (isPlaying) {
+                val animatedPhase = wavePhase + progress * 8f
+                val dynamicBounce = 0.25f * kotlin.math.sin(animatedPhase)
+                (staticHeightFactor + dynamicBounce).coerceIn(0.15f, 1f)
+            } else {
+                staticHeightFactor
+            }
+
+            val barHeight = (h * heightFactor).coerceAtLeast(barWidth)
+            val left = i * (barWidth + actualGap)
+            val top = (h - barHeight) / 2f
+
+            drawRoundRect(
+                color = barColor,
+                topLeft = Offset(left, top),
+                size = Size(barWidth, barHeight),
+                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+            )
+        }
     }
-    val durSec = durationMs / 1000L
-    val durFmt = String.format(Locale.US, "%02d:%02d", durSec / 60, durSec % 60)
-    return "$durFmt  ${dateFmt.format(Date(epochMs))}"
 }
 
 @Composable
@@ -357,71 +405,211 @@ fun NoteListItem(
     onTogglePlayNote: (Note) -> Unit,
     onDeleteNote: (String) -> Unit,
     modifier: Modifier = Modifier,
+    isProcessingThisNote: Boolean = false,
+    processingStage: RewindStage? = null,
 ) {
     val formattedTitle = if (note.title.isNotBlank()) note.title else rememberFormattedDateTitle(note.createdAtEpochMs)
-    val subtext = rememberFormattedSubtext(note.createdAtEpochMs, note.audio.durationMs)
+    val dateText = rememberFormattedDateTitle(note.createdAtEpochMs)
+    val durSec = note.audio.durationMs / 1000L
+    val durationText = String.format(Locale.US, "%02d:%02d", durSec / 60, durSec % 60)
+    val summary = note.summary
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { onSelectNote(note) },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            },
+            containerColor = BurnishedBronze
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) AccentGold else OutlineVariant.copy(alpha = 0.35f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onSelectNote(note) }
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .clickable { onTogglePlayNote(note) },
-                contentAlignment = Alignment.Center,
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Top Meta Row: Date & Top-Right Status Badge & Delete Icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isPlayingThisNote) {
-                    PauseBarsIcon(tint = MaterialTheme.colorScheme.onSurface)
-                } else {
-                    PlayTriangleIcon(tint = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    text = dateText.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ParchmentCream.copy(alpha = 0.65f),
+                    fontWeight = FontWeight.Bold,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = BurnishedBronzeInset,
+                        border = BorderStroke(
+                            1.dp,
+                            when {
+                                isProcessingThisNote -> WaveformTeal.copy(alpha = 0.6f)
+                                summary != null -> AccentGold.copy(alpha = 0.5f)
+                                else -> OutlineVariant.copy(alpha = 0.3f)
+                            }
+                        )
+                    ) {
+                        Text(
+                            text = when {
+                                isProcessingThisNote -> stringResource(R.string.badge_processing)
+                                summary != null -> stringResource(R.string.badge_saved)
+                                else -> stringResource(R.string.badge_unprocessed)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = when {
+                                isProcessingThisNote -> WaveformTeal
+                                summary != null -> AccentGold
+                                else -> ParchmentCream.copy(alpha = 0.65f)
+                            },
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { onDeleteNote(note.id) },
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        TrashBinIcon(tint = ParchmentCream.copy(alpha = 0.45f))
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(Modifier.height(6.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = formattedTitle,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtext,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 13.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            // Title
+            Text(
+                text = formattedTitle,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Middle Content Area
+            when {
+                isProcessingThisNote -> {
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = BurnishedBronzeInset,
+                        border = BorderStroke(1.dp, WaveformTeal.copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = WaveformTeal
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = if (processingStage == RewindStage.Transcribing) {
+                                        stringResource(R.string.processing_transcribing)
+                                    } else {
+                                        stringResource(R.string.processing_summarizing)
+                                    },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = WaveformTeal
+                                )
+                            }
+                        }
+                    }
+                }
+                summary != null && summary.executiveSummary.isNotBlank() -> {
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = BurnishedBronzeInset,
+                        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(AccentGold)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.key_takeaway_label),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = AccentGold,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = summary.executiveSummary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = ParchmentCream,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    // Unprocessed: Omit container completely.
+                }
             }
 
-            IconButton(
-                onClick = { onDeleteNote(note.id) },
-                modifier = Modifier.size(36.dp),
+            Spacer(Modifier.height(14.dp))
+
+            // Bottom Audio Row: [Expanding Waveform] -> [Duration] -> [Play Button at the Right]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                TrashBinIcon(tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
+                // Sound Wave: Occupies 100% of remaining horizontal space
+                WaveformBarVisualizer(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(30.dp),
+                    barColor = if (isProcessingThisNote) WaveformTeal else AccentGold,
+                    isPlaying = isPlayingThisNote,
+                    seed = note.createdAtEpochMs
+                )
+
+                Spacer(Modifier.width(10.dp))
+
+                // Duration Indicator: Beside to the right of the waveform
+                Text(
+                    text = durationText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ParchmentCream.copy(alpha = 0.75f),
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.width(10.dp))
+
+                // Play Button: At the right, symbol only, no text
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(BurnishedBronzeBtn)
+                        .border(BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.6f)), RoundedCornerShape(10.dp))
+                        .clickable { onTogglePlayNote(note) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isPlayingThisNote) {
+                        PauseBarsIcon(tint = AccentGold)
+                    } else {
+                        PlayTriangleIcon(tint = AccentGold)
+                    }
+                }
             }
         }
     }
@@ -495,7 +683,6 @@ fun RecordFloatingActionButton(
     var isTriggered by remember { mutableStateOf(false) }
 
     val infiniteTransition = rememberInfiniteTransition(label = "diagonalWave")
-
     val waveProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -506,64 +693,97 @@ fun RecordFloatingActionButton(
         label = "waveProgress",
     )
 
-    Surface(
-        onClick = {
-            if (!isTriggered) {
-                isTriggered = true
-                scope.launch {
-                    val pullJob = launch {
-                        pullProgress.animateTo(
-                            targetValue = 1f,
-                            animationSpec = tween(
-                                durationMillis = 220,
-                                easing = FastOutLinearInEasing,
-                            ),
-                        )
-                    }
-                    kotlinx.coroutines.delay(140L)
-                    onClick()
-                    pullJob.join()
-                }
-            }
-        },
-        modifier = modifier.size(88.dp),
-        shape = CircleShape,
-        color = ObsidianMidnight,
-        shadowElevation = 12.dp,
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "glowAlpha",
+    )
+
+    Box(
+        modifier = modifier.size(102.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
+        // Outer Glowing Halo behind FAB
+        Canvas(
+            modifier = Modifier.size(102.dp),
         ) {
-            PixelatedRing(
-                radius = 36.dp,
-                pixelSize = 3.dp,
-                color = AccentGold.copy(alpha = 0.85f),
-                modifier = Modifier.size(76.dp),
-                isDotted = true,
-                dotCount = 16,
-                waveProgress = waveProgress,
-                isWaving = true,
-                pullProgress = pullProgress.value,
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        AccentGold.copy(alpha = glowAlpha),
+                        AntiqueBrass.copy(alpha = glowAlpha * 0.6f),
+                        Color.Transparent,
+                    ),
+                    center = center,
+                    radius = size.width / 2f,
+                ),
+                radius = size.width / 2f,
             )
-            PixelatedRing(
-                radius = 28.dp,
-                pixelSize = 3.dp,
-                color = AccentGold.copy(alpha = 0.55f),
-                modifier = Modifier.size(60.dp),
-                isDotted = true,
-                dotCount = 12,
-                waveProgress = waveProgress,
-                isWaving = true,
-                pullProgress = pullProgress.value,
-            )
+        }
+
+        Surface(
+            onClick = {
+                if (!isTriggered) {
+                    isTriggered = true
+                    scope.launch {
+                        val pullJob = launch {
+                            pullProgress.animateTo(
+                                targetValue = 1f,
+                                animationSpec = tween(
+                                    durationMillis = 220,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            )
+                        }
+                        kotlinx.coroutines.delay(140L)
+                        onClick()
+                        pullJob.join()
+                    }
+                }
+            },
+            modifier = Modifier.size(88.dp),
+            shape = CircleShape,
+            color = ObsidianMidnight,
+            shadowElevation = 12.dp,
+        ) {
             Box(
-                modifier = Modifier
-                    .width(12.dp)
-                    .height(22.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(ParchmentCream),
-            )
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                PixelatedRing(
+                    radius = 36.dp,
+                    pixelSize = 3.dp,
+                    color = AccentGold.copy(alpha = 0.85f),
+                    modifier = Modifier.size(76.dp),
+                    isDotted = true,
+                    dotCount = 16,
+                    waveProgress = waveProgress,
+                    isWaving = true,
+                    pullProgress = pullProgress.value,
+                )
+                PixelatedRing(
+                    radius = 28.dp,
+                    pixelSize = 3.dp,
+                    color = AccentGold.copy(alpha = 0.55f),
+                    modifier = Modifier.size(60.dp),
+                    isDotted = true,
+                    dotCount = 12,
+                    waveProgress = waveProgress,
+                    isWaving = true,
+                    pullProgress = pullProgress.value,
+                )
+                Box(
+                    modifier = Modifier
+                        .width(12.dp)
+                        .height(22.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ParchmentCream),
+                )
+            }
         }
     }
 }
@@ -710,8 +930,6 @@ fun HomeRecordingsContent(
                     .padding(bottom = 12.dp),
             )
 
-
-
             // Note List or Empty State
             if (filteredNotes.isEmpty()) {
                 Card(
@@ -735,8 +953,8 @@ fun HomeRecordingsContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(bottom = 120.dp),
                 ) {
                     items(
                         items = filteredNotes,
@@ -744,11 +962,14 @@ fun HomeRecordingsContent(
                     ) { note ->
                         val isSelected = selectedNote?.id == note.id
                         val isPlayingThisNote = isSelected && playbackState.isPlaying
+                        val isProcessingThisNote = processingUiState.isProcessing && processingUiState.noteId == note.id
 
                         NoteListItem(
                             note = note,
                             isSelected = isSelected,
                             isPlayingThisNote = isPlayingThisNote,
+                            isProcessingThisNote = isProcessingThisNote,
+                            processingStage = if (isProcessingThisNote) processingUiState.stage else null,
                             onSelectNote = { selected ->
                                 onSelectNote(selected)
                             },
@@ -843,7 +1064,6 @@ fun HomeRecordingsContent(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-
                                     }
                                 }
                             }
@@ -890,7 +1110,11 @@ fun LiveTestAppShell(
     val authViewModel = remember(component, dataGraph, context) {
         AuthViewModel(dataGraph.auth, googleToken = {
             val appContext = context.applicationContext
-            val webClientIdRes = appContext.resources.getIdentifier("default_web_client_id", "string", appContext.packageName)
+            val webClientIdRes = appContext.resources.getIdentifier(
+                "default_web_client_id",
+                "string",
+                appContext.packageName
+            )
             val webClientId = if (webClientIdRes != 0) appContext.getString(webClientIdRes) else ""
             if (webClientId.isBlank()) {
                 throw IllegalStateException("Google Sign-In is not configured: default_web_client_id missing in google-services.json")
@@ -1129,7 +1353,60 @@ private fun HomeScreenPreview() {
                     },
                 ) {
                     HomeScreen(
-                        notes = emptyList(),
+                        notes = listOf(
+                            Note(
+                                id = "1",
+                                userId = "user1",
+                                title = "Engineering Standup & Roadmap Review",
+                                createdAtEpochMs = System.currentTimeMillis() - 3600_000L,
+                                updatedAtEpochMs = System.currentTimeMillis() - 3600_000L,
+                                audio = group.two.knockledge.data.model.AudioMetadata(
+                                    localPath = "",
+                                    durationMs = 125_000L,
+                                    sampleRate = 16000,
+                                    triggerType = group.two.knockledge.data.model.TriggerType.MANUAL,
+                                ),
+                                summary = group.two.knockledge.data.model.SummaryMetadata(
+                                    executiveSummary = "Discussed Q3 hackathon milestones, resource allocation, and timeline buffers.",
+                                    keyPoints = listOf("Milestones finalized", "Resource allocation approved"),
+                                    chapterMarkers = emptyList(),
+                                    generationMode = group.two.knockledge.data.model.AiEngineType.LOCAL_ON_DEVICE,
+                                ),
+                            ),
+                            Note(
+                                id = "2",
+                                userId = "user1",
+                                title = "Product Design Sprint Sync",
+                                createdAtEpochMs = System.currentTimeMillis() - 7200_000L,
+                                updatedAtEpochMs = System.currentTimeMillis() - 7200_000L,
+                                audio = group.two.knockledge.data.model.AudioMetadata(
+                                    localPath = "",
+                                    durationMs = 90_000L,
+                                    sampleRate = 16000,
+                                    triggerType = group.two.knockledge.data.model.TriggerType.GESTURE,
+                                ),
+                                summary = null,
+                            ),
+                            Note(
+                                id = "3",
+                                userId = "user1",
+                                title = "Architecture & Database Migration Plan",
+                                createdAtEpochMs = System.currentTimeMillis() - 10800_000L,
+                                updatedAtEpochMs = System.currentTimeMillis() - 10800_000L,
+                                audio = group.two.knockledge.data.model.AudioMetadata(
+                                    localPath = "",
+                                    durationMs = 210_000L,
+                                    sampleRate = 16000,
+                                    triggerType = group.two.knockledge.data.model.TriggerType.MANUAL,
+                                ),
+                                summary = group.two.knockledge.data.model.SummaryMetadata(
+                                    executiveSummary = "Reviewed Room DB schema changes, migration strategies, and fallback handling.",
+                                    keyPoints = listOf("Schema migration verified", "Rollback plan approved"),
+                                    chapterMarkers = emptyList(),
+                                    generationMode = group.two.knockledge.data.model.AiEngineType.LOCAL_ON_DEVICE,
+                                ),
+                            ),
+                        ),
                         selectedNote = null,
                         playbackState = AudioPlaybackState(),
                         processingUiState = NoteProcessingUiState(),
@@ -1216,3 +1493,42 @@ private fun RecordFloatingActionButtonPreview() {
     }
 }
 
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+private fun NoteListItemPreview() {
+    KnockledgeTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ObsidianMidnight)
+                .padding(16.dp),
+        ) {
+            NoteListItem(
+                note = Note(
+                    id = "1",
+                    userId = "user1",
+                    title = "Engineering Standup & Roadmap Review",
+                    createdAtEpochMs = System.currentTimeMillis(),
+                    updatedAtEpochMs = System.currentTimeMillis(),
+                    audio = group.two.knockledge.data.model.AudioMetadata(
+                        localPath = "",
+                        durationMs = 125_000L,
+                        sampleRate = 16000,
+                        triggerType = group.two.knockledge.data.model.TriggerType.MANUAL,
+                    ),
+                    summary = group.two.knockledge.data.model.SummaryMetadata(
+                        executiveSummary = "Discussed Q3 hackathon milestones, resource allocation, and timeline buffers.",
+                        keyPoints = listOf("Milestones finalized", "Resource allocation approved"),
+                        chapterMarkers = emptyList(),
+                        generationMode = group.two.knockledge.data.model.AiEngineType.LOCAL_ON_DEVICE,
+                    ),
+                ),
+                isSelected = false,
+                isPlayingThisNote = false,
+                onSelectNote = {},
+                onTogglePlayNote = {},
+                onDeleteNote = {},
+            )
+        }
+    }
+}
