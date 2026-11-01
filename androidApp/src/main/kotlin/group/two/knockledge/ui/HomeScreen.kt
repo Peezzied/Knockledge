@@ -1,5 +1,27 @@
 package group.two.knockledge.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,15 +38,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +67,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -415,13 +436,20 @@ fun PixelatedRing(
     pixelSize: androidx.compose.ui.unit.Dp,
     color: Color,
     modifier: Modifier = Modifier,
+    isDotted: Boolean = false,
+    dotCount: Int = 16,
+    waveProgress: Float = 0f,
+    isWaving: Boolean = false,
+    pullProgress: Float = 0f,
 ) {
     Canvas(modifier = modifier) {
         val centerX = size.width / 2f
         val centerY = size.height / 2f
-        val radiusPx = radius.toPx()
+        val effectiveRadiusDp = radius * (1f - 0.75f * pullProgress)
+        val radiusPx = effectiveRadiusDp.toPx()
         val stepPx = pixelSize.toPx()
-        val steps = (2 * Math.PI * radiusPx / stepPx).toInt().coerceAtLeast(32)
+        val steps = if (isDotted) dotCount else (2 * Math.PI * radiusPx / stepPx).toInt().coerceAtLeast(32)
+        val alphaMultiplier = 1f - 0.4f * pullProgress
 
         for (i in 0 until steps) {
             val angle = (2 * Math.PI * i / steps).toFloat()
@@ -430,25 +458,74 @@ fun PixelatedRing(
             val snappedX = (rawX / stepPx).toInt() * stepPx
             val snappedY = (rawY / stepPx).toInt() * stepPx
 
+            val dotScale = if (isWaving) {
+                val baseRadiusPx = radius.toPx().coerceAtLeast(1f)
+                val normalizedDiag = (snappedX + snappedY) / (1.414f * baseRadiusPx)
+                val wavePhase = (2 * Math.PI * (waveProgress - normalizedDiag * 0.5f)).toFloat()
+                (1f + 0.25f * kotlin.math.sin(wavePhase)) * (1f - 0.3f * pullProgress)
+            } else {
+                1f - 0.3f * pullProgress
+            }
+
+            val currentDotSize = stepPx * dotScale
+
             drawRect(
-                color = color,
-                topLeft = Offset(centerX + snappedX - stepPx / 2f, centerY + snappedY - stepPx / 2f),
-                size = Size(stepPx, stepPx),
+                color = color.copy(alpha = color.alpha * alphaMultiplier),
+                topLeft = Offset(
+                    centerX + snappedX - currentDotSize / 2f,
+                    centerY + snappedY - currentDotSize / 2f,
+                ),
+                size = Size(currentDotSize, currentDotSize),
             )
         }
     }
 }
 
 /**
- * Floating Recording Button reproducing the RecordTab circle button verbatim.
+ * Floating Recording Button reproducing the RecordTab circle button verbatim with a diagonal wave dot animation
+ * and a center pull animation on click before navigating to RecordScreen.
  */
 @Composable
 fun RecordFloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
+    val pullProgress = remember { Animatable(0f) }
+    var isTriggered by remember { mutableStateOf(false) }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "diagonalWave")
+
+    val waveProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "waveProgress",
+    )
+
     Surface(
-        onClick = onClick,
+        onClick = {
+            if (!isTriggered) {
+                isTriggered = true
+                scope.launch {
+                    val pullJob = launch {
+                        pullProgress.animateTo(
+                            targetValue = 1f,
+                            animationSpec = tween(
+                                durationMillis = 220,
+                                easing = FastOutLinearInEasing,
+                            ),
+                        )
+                    }
+                    kotlinx.coroutines.delay(140L)
+                    onClick()
+                    pullJob.join()
+                }
+            }
+        },
         modifier = modifier.size(88.dp),
         shape = CircleShape,
         color = ObsidianMidnight,
@@ -460,15 +537,25 @@ fun RecordFloatingActionButton(
         ) {
             PixelatedRing(
                 radius = 36.dp,
-                pixelSize = 2.5.dp,
+                pixelSize = 3.dp,
                 color = AccentGold.copy(alpha = 0.85f),
                 modifier = Modifier.size(76.dp),
+                isDotted = true,
+                dotCount = 16,
+                waveProgress = waveProgress,
+                isWaving = true,
+                pullProgress = pullProgress.value,
             )
             PixelatedRing(
                 radius = 28.dp,
-                pixelSize = 2.5.dp,
+                pixelSize = 3.dp,
                 color = AccentGold.copy(alpha = 0.55f),
                 modifier = Modifier.size(60.dp),
+                isDotted = true,
+                dotCount = 12,
+                waveProgress = waveProgress,
+                isWaving = true,
+                pullProgress = pullProgress.value,
             )
             Box(
                 modifier = Modifier
@@ -545,24 +632,12 @@ fun HomeRecordingsContent(
     onNavigateToSettings: () -> Unit = {},
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("All") }
 
-    val categories = listOf("All", "Recorder", "Calls", "Apps")
-
-    val filteredNotes = remember(notes, searchQuery, selectedCategory) {
+    val filteredNotes = remember(notes, searchQuery) {
         notes.filter { note ->
-            val matchesSearch = searchQuery.isBlank() ||
+            searchQuery.isBlank() ||
                 note.title.contains(searchQuery, ignoreCase = true) ||
                 (note.transcript?.fullText?.contains(searchQuery, ignoreCase = true) == true)
-
-            val matchesCategory = when (selectedCategory) {
-                "Recorder" -> note.audio.triggerType == TriggerType.MANUAL || note.audio.triggerType == TriggerType.GESTURE
-                "Calls" -> false
-                "Apps" -> false
-                else -> true
-            }
-
-            matchesSearch && matchesCategory
         }
     }
 
@@ -635,40 +710,7 @@ fun HomeRecordingsContent(
                     .padding(bottom = 12.dp),
             )
 
-            // Filter Category Chips
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(bottom = 12.dp),
-            ) {
-                items(categories) { category ->
-                    val isSelected = selectedCategory == category
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { selectedCategory = category },
-                        label = {
-                            Text(
-                                text = category,
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                ),
-                            )
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            selectedLabelColor = MaterialTheme.colorScheme.onSurface,
-                            containerColor = Color.Transparent,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = isSelected,
-                            borderColor = Color.Transparent,
-                            selectedBorderColor = Color.Transparent,
-                        ),
-                    )
-                }
-            }
+
 
             // Note List or Empty State
             if (filteredNotes.isEmpty()) {
@@ -877,71 +919,178 @@ fun LiveTestAppShell(
 
         var selectedNoteId by remember { mutableStateOf<String?>(null) }
         val selectedNote = notes.firstOrNull { it.id == selectedNoteId }
-        var showSettings by remember { mutableStateOf(false) }
-        var showRecord by remember { mutableStateOf(false) }
         val playbackState by playbackViewModel.playbackState.collectAsState()
         val processingUiState by processingViewModel.processingState.collectAsState()
         val settingsUiState by settingsViewModel.uiState.collectAsState()
+        val recordingUiState by recordingViewModel.uiState.collectAsState()
         val autoAiEnabled by appSettings.autoAiProcessingEnabled.collectAsState()
 
-        if (showSettings) {
-            Surface(
-                modifier = modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
+        val navController = rememberNavController()
+
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(ObsidianMidnight),
+        ) {
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize(),
             ) {
-                SettingsTab(
-                    settingsUiState = settingsUiState,
-                    authState = authState,
-                    autoAiEnabled = autoAiEnabled,
-                    onAutoAiChanged = appSettings::setAutoAiProcessingEnabled,
-                    onBufferDurationChanged = settingsViewModel::setBufferDurationSeconds,
-                    onKnockThresholdChanged = settingsViewModel::setKnockSensorThreshold,
-                    onSignOut = authViewModel::signOut,
-                    onNavigateToHome = { showSettings = false },
-                )
-            }
-        } else if (showRecord) {
-            Surface(
-                modifier = modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background,
-            ) {
-                RecordScreen(
-                    recordingViewModel = recordingViewModel,
-                    hasRecordAudioPermission = hasRecordAudioPermission,
-                    onRequestPermission = onRequestPermission,
-                    onNavigateToHome = { showRecord = false },
-                    autoAiEnabled = autoAiEnabled,
-                    onAutoAiChanged = appSettings::setAutoAiProcessingEnabled,
-                    modifier = modifier,
-                )
-            }
-        } else {
-            HomeScreen(
-                notes = notes,
-                selectedNote = selectedNote,
-                playbackState = playbackState,
-                processingUiState = processingUiState,
-                onSelectNote = { note ->
-                    selectedNoteId = note.id
-                    playbackViewModel.loadNote(note)
-                },
-                onDeleteNote = { noteId ->
-                    scope.launch {
-                        dataGraph.notes.deleteNote(noteId, activeUserId)
+                composable(
+                    route = "home",
+                    enterTransition = {
+                        (scaleIn(
+                            initialScale = 0.90f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(320, easing = FastOutSlowInEasing)))
+                    },
+                    exitTransition = {
+                        (scaleOut(
+                            targetScale = 0.90f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(280, easing = FastOutLinearInEasing),
+                        ) + fadeOut(animationSpec = tween(280, easing = FastOutLinearInEasing)))
+                    },
+                ) {
+                    HomeScreen(
+                        notes = notes,
+                        selectedNote = selectedNote,
+                        playbackState = playbackState,
+                        processingUiState = processingUiState,
+                        onSelectNote = { note ->
+                            selectedNoteId = note.id
+                            playbackViewModel.loadNote(note)
+                        },
+                        onDeleteNote = { noteId ->
+                            scope.launch {
+                                dataGraph.notes.deleteNote(noteId, activeUserId)
+                            }
+                        },
+                        onTogglePlayPause = playbackViewModel::togglePlayPause,
+                        onSeekTo = playbackViewModel::seekTo,
+                        onSelectChapter = playbackViewModel::selectChapter,
+                        onProcessNote = processingViewModel::processNote,
+                        onManualSave = {
+                            navController.navigate("record")
+                        },
+                        onNavigateToSettings = {
+                            navController.navigate("settings")
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                composable(
+                    route = "record",
+                    enterTransition = {
+                        if (recordingUiState.isRecording) {
+                            (scaleIn(
+                                initialScale = 0.02f,
+                                transformOrigin = TransformOrigin(0.5f, 0.92f),
+                                animationSpec = tween(
+                                    durationMillis = 420,
+                                    easing = CubicBezierEasing(0.12f, 0.8f, 0.15f, 1.0f),
+                                ),
+                            ) + fadeIn(
+                                animationSpec = tween(
+                                    durationMillis = 250,
+                                    easing = LinearEasing,
+                                ),
+                            ))
+                        } else {
+                            fadeIn(
+                                animationSpec = tween(
+                                    durationMillis = 200,
+                                    easing = LinearEasing,
+                                ),
+                            )
+                        }
+                    },
+                    exitTransition = {
+                        if (recordingUiState.isRecording) {
+                            (scaleOut(
+                                targetScale = 0.02f,
+                                transformOrigin = TransformOrigin(0.5f, 0.92f),
+                                animationSpec = tween(
+                                    durationMillis = 320,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            ) + fadeOut(
+                                animationSpec = tween(
+                                    durationMillis = 320,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            ))
+                        } else {
+                            fadeOut(
+                                animationSpec = tween(
+                                    durationMillis = 200,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            )
+                        }
+                    },
+                    popExitTransition = {
+                        if (recordingUiState.isRecording) {
+                            (scaleOut(
+                                targetScale = 0.02f,
+                                transformOrigin = TransformOrigin(0.5f, 0.92f),
+                                animationSpec = tween(
+                                    durationMillis = 320,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            ) + fadeOut(
+                                animationSpec = tween(
+                                    durationMillis = 320,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            ))
+                        } else {
+                            fadeOut(
+                                animationSpec = tween(
+                                    durationMillis = 200,
+                                    easing = FastOutLinearInEasing,
+                                ),
+                            )
+                        }
+                    },
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background,
+                    ) {
+                        RecordScreen(
+                            recordingViewModel = recordingViewModel,
+                            hasRecordAudioPermission = hasRecordAudioPermission,
+                            onRequestPermission = onRequestPermission,
+                            onNavigateToHome = { navController.popBackStack() },
+                            autoAiEnabled = autoAiEnabled,
+                            onAutoAiChanged = appSettings::setAutoAiProcessingEnabled,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
-                },
-                onTogglePlayPause = playbackViewModel::togglePlayPause,
-                onSeekTo = playbackViewModel::seekTo,
-                onSelectChapter = playbackViewModel::selectChapter,
-                onProcessNote = processingViewModel::processNote,
-                onManualSave = {
-                    showRecord = true
-                },
-                onNavigateToSettings = {
-                    showSettings = true
-                },
-                modifier = modifier,
-            )
+                }
+
+                composable("settings") {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background,
+                    ) {
+                        SettingsTab(
+                            settingsUiState = settingsUiState,
+                            authState = authState,
+                            autoAiEnabled = autoAiEnabled,
+                            onAutoAiChanged = appSettings::setAutoAiProcessingEnabled,
+                            onBufferDurationChanged = settingsViewModel::setBufferDurationSeconds,
+                            onKnockThresholdChanged = settingsViewModel::setKnockSensorThreshold,
+                            onSignOut = authViewModel::signOut,
+                            onNavigateToHome = { navController.popBackStack() },
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -950,19 +1099,120 @@ fun LiveTestAppShell(
 @Composable
 private fun HomeScreenPreview() {
     KnockledgeTheme {
-        HomeScreen(
-            notes = emptyList(),
-            selectedNote = null,
-            playbackState = AudioPlaybackState(),
-            processingUiState = NoteProcessingUiState(),
-            onSelectNote = {},
-            onDeleteNote = {},
-            onTogglePlayPause = {},
-            onSeekTo = {},
-            onSelectChapter = {},
-            onProcessNote = {},
-            onManualSave = {},
-            onNavigateToSettings = {},
-        )
+        val navController = rememberNavController()
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ObsidianMidnight),
+        ) {
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                composable(
+                    route = "home",
+                    enterTransition = {
+                        (scaleIn(
+                            initialScale = 0.90f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(320, easing = FastOutSlowInEasing)))
+                    },
+                    exitTransition = {
+                        (scaleOut(
+                            targetScale = 0.90f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(280, easing = FastOutLinearInEasing),
+                        ) + fadeOut(animationSpec = tween(280, easing = FastOutLinearInEasing)))
+                    },
+                ) {
+                    HomeScreen(
+                        notes = emptyList(),
+                        selectedNote = null,
+                        playbackState = AudioPlaybackState(),
+                        processingUiState = NoteProcessingUiState(),
+                        onSelectNote = {},
+                        onDeleteNote = {},
+                        onTogglePlayPause = {},
+                        onSeekTo = {},
+                        onSelectChapter = {},
+                        onProcessNote = {},
+                        onManualSave = { navController.navigate("record") },
+                        onNavigateToSettings = {},
+                    )
+                }
+
+                composable(
+                    route = "record",
+                    enterTransition = {
+                        fadeIn(
+                            animationSpec = tween(
+                                durationMillis = 200,
+                                easing = LinearEasing,
+                            ),
+                        )
+                    },
+                    exitTransition = {
+                        fadeOut(
+                            animationSpec = tween(
+                                durationMillis = 200,
+                                easing = FastOutLinearInEasing,
+                            ),
+                        )
+                    },
+                    popExitTransition = {
+                        fadeOut(
+                            animationSpec = tween(
+                                durationMillis = 200,
+                                easing = FastOutLinearInEasing,
+                            ),
+                        )
+                    },
+                ) {
+                    RecordScreen(
+                        recordingUiState = KnockRecordingUiState(
+                            isRecording = true,
+                            bufferedSeconds = 60,
+                            maxBufferSeconds = 300,
+                            level = 0.5f,
+                        ),
+                        hasRecordAudioPermission = true,
+                        onStartSession = {},
+                        onStopSession = {},
+                        onManualSave = {},
+                        onRequestPermission = {},
+                        onNavigateToHome = { navController.popBackStack() },
+                    )
+                }
+            }
+        }
     }
 }
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+private fun RecordFloatingActionButtonPreview() {
+    var clickedCount by remember { mutableStateOf(0) }
+    KnockledgeTheme {
+        Column(
+            modifier = Modifier
+                .size(160.dp)
+                .background(ParchmentCream),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = if (clickedCount > 0) "Triggered ($clickedCount)" else "Tap FAB",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            RecordFloatingActionButton(
+                onClick = { clickedCount++ },
+            )
+        }
+    }
+}
+

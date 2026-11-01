@@ -2,6 +2,7 @@ package group.two.knockledge.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -27,10 +28,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +56,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -69,6 +70,7 @@ import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.SurfaceContainerHigh
 import group.two.knockledge.ui.theme.TextInk
 import group.two.knockledge.ui.theme.WaveformTeal
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.Random
@@ -158,7 +160,6 @@ fun RecordScreen(
     onDurationChange: (Int) -> Unit = {},
     onSimulateKnock: () -> Unit = {},
 ) {
-    val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
     var isSinking by remember { mutableStateOf(false) }
 
@@ -225,6 +226,56 @@ fun RecordScreen(
         label = "suction_depth_alpha",
     )
 
+    var isButtonInPosition by remember { mutableStateOf(recordingUiState.isRecording) }
+    var isContentVisible by remember { mutableStateOf(recordingUiState.isRecording) }
+
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isButtonInPosition) 1f else 0.38f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "button_entrance_scale",
+    )
+
+    val buttonOffsetY by animateFloatAsState(
+        targetValue = if (isButtonInPosition) 0f else 320f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "button_entrance_offset_y",
+    )
+
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isContentVisible) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 350,
+            easing = FastOutSlowInEasing,
+        ),
+        label = "content_alpha",
+    )
+
+    val contentOffsetY by animateFloatAsState(
+        targetValue = if (isContentVisible) 0f else 16f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "content_offset_y",
+    )
+
+    LaunchedEffect(recordingUiState.isRecording) {
+        if (recordingUiState.isRecording) {
+            isButtonInPosition = true
+            isContentVisible = true
+        } else {
+            isButtonInPosition = true
+            delay(320L)
+            isContentVisible = true
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -252,6 +303,10 @@ fun RecordScreen(
                     bufferedSeconds = recordingUiState.bufferedSeconds,
                     autoAiEnabled = autoAiEnabled,
                     onAutoAiChanged = onAutoAiChanged,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = contentAlpha
+                        translationY = -contentOffsetY.dp.toPx()
+                    },
                 )
             },
         ) { innerPadding ->
@@ -259,7 +314,6 @@ fun RecordScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -271,7 +325,12 @@ fun RecordScreen(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                         ),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                alpha = contentAlpha
+                                translationY = contentOffsetY.dp.toPx()
+                            },
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -295,217 +354,233 @@ fun RecordScreen(
                 }
 
                 // Central Mic Ring Container + Glowing Halo & Black Hole Suction Vortex
-            Box(
-                modifier = Modifier
-                    .size(240.dp)
-                    .scale(buttonPressScale),
-                contentAlignment = Alignment.Center,
-            ) {
-                // Outer Radial Glowing Halo
-                Canvas(
+                Box(
                     modifier = Modifier
-                        .size(200.dp)
-                        .scale(if (recordingUiState.isRecording) pulseScale else 1f),
+                        .size(240.dp)
+                        .graphicsLayer {
+                            translationY = buttonOffsetY.dp.toPx()
+                            scaleX = buttonScale * buttonPressScale
+                            scaleY = buttonScale * buttonPressScale
+                        },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                AccentGold.copy(
-                                    alpha = (if (recordingUiState.isRecording) glowHaloAlpha else 0.35f) * suctionDepthAlpha,
+                    // Outer Radial Glowing Halo
+                    Canvas(
+                        modifier = Modifier
+                            .size(200.dp)
+                            .scale(if (recordingUiState.isRecording) pulseScale else 1f),
+                    ) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    AccentGold.copy(
+                                        alpha = (if (recordingUiState.isRecording) glowHaloAlpha else 0.35f) * suctionDepthAlpha,
+                                    ),
+                                    AntiqueBrass.copy(
+                                        alpha = (if (recordingUiState.isRecording) glowHaloAlpha * 0.5f else 0.15f) * suctionDepthAlpha,
+                                    ),
+                                    Color.Transparent,
                                 ),
-                                AntiqueBrass.copy(
-                                    alpha = (if (recordingUiState.isRecording) glowHaloAlpha * 0.5f else 0.15f) * suctionDepthAlpha,
-                                ),
-                                Color.Transparent,
+                                center = center,
+                                radius = size.width / 2f,
                             ),
-                            center = center,
                             radius = size.width / 2f,
-                        ),
-                        radius = size.width / 2f,
-                    )
-                }
+                        )
+                    }
 
-                // Black hole particle suction overlay
-                if (suctionAnim.value > 0f && suctionAnim.value < 1f) {
-                    val progress = suctionAnim.value
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val centerX = size.width / 2f
-                        val centerY = size.height / 2f
+                    // Black hole particle suction overlay
+                    if (suctionAnim.value > 0f && suctionAnim.value < 1f) {
+                        val progress = suctionAnim.value
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val centerX = size.width / 2f
+                            val centerY = size.height / 2f
 
-                        particles.forEach { p ->
-                            val pProgress = (progress * p.speedMultiplier).coerceIn(0f, 1f)
-                            if (pProgress in 0.01f..0.99f) {
-                                val currentRadiusPx = p.initialRadiusDp.dp.toPx() * (1f - pProgress.toDouble().pow(2.2).toFloat())
-                                val currentAngle = p.initialAngleRad + pProgress * 1.8f
-                                val px = centerX + currentRadiusPx * cos(currentAngle)
-                                val py = centerY + currentRadiusPx * sin(currentAngle)
-                                val alpha = (1f - pProgress * pProgress) * 0.92f
-                                val radiusPx = (p.particleSizeDp.dp.toPx() * (1f - pProgress * 0.5f)).coerceAtLeast(1.5f)
+                            particles.forEach { p ->
+                                val pProgress = (progress * p.speedMultiplier).coerceIn(0f, 1f)
+                                if (pProgress in 0.01f..0.99f) {
+                                    val currentRadiusPx = p.initialRadiusDp.dp.toPx() * (1f - pProgress.toDouble().pow(2.2).toFloat())
+                                    val currentAngle = p.initialAngleRad + pProgress * 1.8f
+                                    val px = centerX + currentRadiusPx * cos(currentAngle)
+                                    val py = centerY + currentRadiusPx * sin(currentAngle)
+                                    val alpha = (1f - pProgress * pProgress) * 0.92f
+                                    val radiusPx = (p.particleSizeDp.dp.toPx() * (1f - pProgress * 0.5f)).coerceAtLeast(1.5f)
 
-                                drawCircle(
-                                    color = p.color.copy(alpha = alpha),
-                                    radius = radiusPx,
-                                    center = Offset(px, py),
-                                )
+                                    drawCircle(
+                                        color = p.color.copy(alpha = alpha),
+                                        radius = radiusPx,
+                                        center = Offset(px, py),
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                // Interactive Mic Ring Button with Pixelated Rings
-                Box(
-                    modifier = Modifier
-                        .size(180.dp)
-                        .padding(8.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            enabled = !recordingUiState.isSavingSnapshot,
-                            onClick = {
-                                scope.launch {
-                                    isSinking = true
-                                    suctionAnim.snapTo(0f)
-                                    suctionAnim.animateTo(
-                                        targetValue = 1f,
-                                        animationSpec = tween(
-                                            durationMillis = 480,
-                                            easing = FastOutLinearInEasing,
-                                        ),
-                                    )
-                                    isSinking = false
-                                }
-                                if (recordingUiState.isRecording) {
-                                    onManualSave()
-                                } else {
-                                    onStartSession()
-                                }
-                            },
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    // Outer Pixelated Ring
-                    PixelatedRing(
-                        radius = 76.dp,
-                        pixelSize = 3.dp,
-                        color = AccentGold.copy(
-                            alpha = (if (recordingUiState.isRecording) pulseAlpha else 0.5f) * suctionDepthAlpha,
-                        ),
-                        modifier = Modifier
-                            .size(160.dp)
-                            .scale(if (recordingUiState.isRecording) pulseScale else 1f),
-                    )
-
-                    // Inner Pixelated Ring
-                    PixelatedRing(
-                        radius = 64.dp,
-                        pixelSize = 3.dp,
-                        color = AccentGold.copy(
-                            alpha = (if (recordingUiState.isRecording) (pulseAlpha * 0.8f) else 0.35f) * suctionDepthAlpha,
-                        ),
-                        modifier = Modifier
-                            .size(136.dp)
-                            .scale(if (recordingUiState.isRecording) (pulseScale * 0.98f) else 1f),
-                    )
-
-                    // Center Mic Pill Icon - Glowing Parchment Cream
+                    // Interactive Mic Ring Button with Pixelated Rings
                     Box(
                         modifier = Modifier
-                            .width(24.dp)
-                            .height(40.dp)
-                            .scale(if (isSinking) 0.85f else 1.0f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(ParchmentCream.copy(alpha = suctionDepthAlpha)),
+                            .size(180.dp)
+                            .padding(8.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                enabled = !recordingUiState.isSavingSnapshot,
+                                onClick = {
+                                    scope.launch {
+                                        isSinking = true
+                                        suctionAnim.snapTo(0f)
+                                        suctionAnim.animateTo(
+                                            targetValue = 1f,
+                                            animationSpec = tween(
+                                                durationMillis = 480,
+                                                easing = FastOutLinearInEasing,
+                                            ),
+                                        )
+                                        isSinking = false
+                                    }
+                                    if (recordingUiState.isRecording) {
+                                        onManualSave()
+                                    } else {
+                                        onStartSession()
+                                    }
+                                },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        // Outer Pixelated Ring
+                        PixelatedRing(
+                            radius = 76.dp,
+                            pixelSize = 3.dp,
+                            color = AccentGold.copy(
+                                alpha = (if (recordingUiState.isRecording) pulseAlpha else 0.5f) * suctionDepthAlpha,
+                            ),
+                            modifier = Modifier
+                                .size(160.dp)
+                                .scale(if (recordingUiState.isRecording) pulseScale else 1f),
+                        )
+
+                        // Inner Pixelated Ring
+                        PixelatedRing(
+                            radius = 64.dp,
+                            pixelSize = 3.dp,
+                            color = AccentGold.copy(
+                                alpha = (if (recordingUiState.isRecording) (pulseAlpha * 0.8f) else 0.35f) * suctionDepthAlpha,
+                            ),
+                            modifier = Modifier
+                                .size(136.dp)
+                                .scale(if (recordingUiState.isRecording) (pulseScale * 0.98f) else 1f),
+                        )
+
+                        // Center Mic Pill Icon - Glowing Parchment Cream
+                        Box(
+                            modifier = Modifier
+                                .width(24.dp)
+                                .height(40.dp)
+                                .scale(if (isSinking) 0.85f else 1.0f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(ParchmentCream.copy(alpha = suctionDepthAlpha)),
+                        )
+                    }
+                }
+
+                // Remaining content following the central mic ring button
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = contentAlpha
+                            translationY = contentOffsetY.dp.toPx()
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = if (recordingUiState.isRecording) {
+                                stringResource(R.string.recording_status_active)
+                            } else {
+                                stringResource(R.string.recording_status_inactive)
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = ParchmentCream,
+                            textAlign = TextAlign.Center,
+                        )
+
+                        Text(
+                            text = stringResource(
+                                R.string.recording_buffer_status,
+                                formatBufferTime(recordingUiState.bufferedSeconds),
+                                formatBufferTime(recordingUiState.maxBufferSeconds),
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AccentGold,
+                            textAlign = TextAlign.Center,
+                        )
+
+                        Text(
+                            text = if (recordingUiState.isGestureActive) {
+                                stringResource(R.string.recording_gesture_status_active)
+                            } else {
+                                stringResource(R.string.recording_gesture_status_inactive)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AccentGold,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+
+                    FunctionalWaveform(
+                        isRecording = recordingUiState.isRecording,
+                        level = recordingUiState.level,
                     )
-                }
-            }
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = if (recordingUiState.isRecording) {
-                        stringResource(R.string.recording_status_active)
+                    Text(
+                        text = stringResource(R.string.recording_hint_text),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AccentGold,
+                        textAlign = TextAlign.Center,
+                    )
+
+                    StackedCaptureDeck()
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Dedicated Stop Recording Button when recording, or Start Session button
+                    if (recordingUiState.isRecording) {
+                        Button(
+                            onClick = onStopSession,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(4.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ObsidianMidnight,
+                                contentColor = ParchmentCream,
+                            ),
+                            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
+                                brush = Brush.horizontalGradient(listOf(AccentGold, AntiqueBrass)),
+                            ),
+                        ) {
+                            Text(text = stringResource(R.string.stop_session))
+                        }
                     } else {
-                        stringResource(R.string.recording_status_inactive)
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = ParchmentCream,
-                    textAlign = TextAlign.Center,
-                )
+                        Button(
+                            onClick = onStartSession,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(4.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AntiqueBrass,
+                                contentColor = TextInk,
+                            ),
+                        ) {
+                            Text(text = stringResource(R.string.start_session))
+                        }
+                    }
 
-                Text(
-                    text = stringResource(
-                        R.string.recording_buffer_status,
-                        formatBufferTime(recordingUiState.bufferedSeconds),
-                        formatBufferTime(recordingUiState.maxBufferSeconds),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = AccentGold,
-                    textAlign = TextAlign.Center,
-                )
-
-                Text(
-                    text = if (recordingUiState.isGestureActive) {
-                        stringResource(R.string.recording_gesture_status_active)
-                    } else {
-                        stringResource(R.string.recording_gesture_status_inactive)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = AccentGold,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            FunctionalWaveform(
-                isRecording = recordingUiState.isRecording,
-                level = recordingUiState.level,
-            )
-
-            Text(
-                text = stringResource(R.string.recording_hint_text),
-                style = MaterialTheme.typography.bodyMedium,
-                color = AccentGold,
-                textAlign = TextAlign.Center,
-            )
-
-            StackedCaptureDeck()
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Dedicated Stop Recording Button when recording, or Start Session button
-            if (recordingUiState.isRecording) {
-                Button(
-                    onClick = onStopSession,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(4.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ObsidianMidnight,
-                        contentColor = ParchmentCream,
-                    ),
-                    border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
-                        brush = Brush.horizontalGradient(listOf(AccentGold, AntiqueBrass)),
-                    ),
-                ) {
-                    Text(text = stringResource(R.string.stop_session))
-                }
-            } else {
-                Button(
-                    onClick = onStartSession,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(4.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AntiqueBrass,
-                        contentColor = TextInk,
-                    ),
-                ) {
-                    Text(text = stringResource(R.string.start_session))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
 }
 
 @Composable

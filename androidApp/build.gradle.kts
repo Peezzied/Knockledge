@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.onnxruntime.android)
     implementation(libs.litertlm.android)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.foundation)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.dagger)
