@@ -109,6 +109,11 @@ class AppSettings(
     )
     val autoAiProcessingEnabled: StateFlow<Boolean> = _autoAiProcessingEnabled.asStateFlow()
 
+    private val _remoteSyncEnabled = MutableStateFlow(
+        store.getString(KEY_REMOTE_SYNC)?.toBooleanStrictOrNull() ?: true,
+    )
+    val remoteSyncEnabled: StateFlow<Boolean> = _remoteSyncEnabled.asStateFlow()
+
     /** Clamps [seconds] into [RewindPolicy]'s supported window, then persists and publishes it. */
     fun setBufferDurationSeconds(seconds: Int) {
         val clamped = RewindPolicy.clampWindowSeconds(seconds)
@@ -177,6 +182,12 @@ class AppSettings(
         _autoAiProcessingEnabled.value = enabled
     }
 
+    /** Stores [enabled] and publishes it to [remoteSyncEnabled]. */
+    fun setRemoteSyncEnabled(enabled: Boolean) {
+        store.putString(KEY_REMOTE_SYNC, enabled.toString())
+        _remoteSyncEnabled.value = enabled
+    }
+
     companion object {
         /** Pick online or local automatically based on connectivity. */
         const val MODE_AUTO = "auto"
@@ -203,6 +214,7 @@ class AppSettings(
         private const val KEY_TRANSCRIPTION_LOCAL_MODEL = "transcription_local_model"
         private const val KEY_COMPREHENSION_MODE = "comprehension_mode"
         private const val KEY_AUTO_AI_PROCESSING = "auto_ai_processing_enabled"
+        private const val KEY_REMOTE_SYNC = "remote_sync_enabled"
     }
 }
 

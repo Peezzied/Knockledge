@@ -101,6 +101,13 @@ class NoteRepositoryTest {
         assertEquals("sum", s.summary?.executiveSummary)
     }
 
+    @Test fun renameNoteUpdatesTitle() = runBlocking {
+        val note = repo.createFromSnapshot(snapshot(), "u1")
+        val renamed = repo.renameNote(note.id, "u1", "Renamed Title")
+        assertEquals("Renamed Title", renamed.title)
+        assertEquals("Renamed Title", repo.getNote(note.id, "u1")?.title)
+    }
+
     @Test fun otherUserCannotTouchNote() = runBlocking {
         val note = repo.createFromSnapshot(snapshot(), "u1")
         assertNull(repo.getNote(note.id, "u2"))

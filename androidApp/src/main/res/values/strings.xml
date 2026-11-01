@@ -54,15 +54,45 @@
     <string name="no_transcript">No transcript available.</string>
     <string name="no_summary">No summary generated.</string>
     <string name="run_ai_processing">Run AI Processing</string>
+    <string name="process_with_ai">Process with AI</string>
+    <string name="ai_reprocess">AI Reprocess</string>
+    <string name="summary_empty_subtitle">Process this audio note with AI to generate an executive summary and key highlights.</string>
+    <string name="transcript_empty_subtitle">Process this audio note with AI to generate a full transcript with speaker labels.</string>
 
     <!-- Settings Tab -->
-    <string name="settings_tab_title">Settings &amp; Authentication</string>
+    <string name="settings_tab_title">Settings</string>
     <string name="account_status_title">Account Profile</string>
     <string name="signed_in_as">Signed in as: %1$s</string>
     <string name="guest_mode">Guest Mode (Local storage only)</string>
     <string name="sign_in">Sign In</string>
-    <string name="sign_out">Sign Out</string>
+    <string name="sign_out">Sign out</string>
     <string name="register">Register</string>
+    <string name="buffer_duration_setting">Buffer Duration</string>
+    <string name="knock_threshold_setting">Knock Sensitivity Threshold</string>
+    <string name="knock_threshold_desc">Adjust accelerometer g-force threshold for knock detection.</string>
+    <string name="settings_buffer_duration_header">BUFFER DURATION</string>
+    <string name="settings_buffer_minutes_kept">%1$d minutes kept</string>
+    <string name="settings_buffer_minute_kept">%1$d minute kept</string>
+    <string name="settings_storage_header">STORAGE CONSUMPTION</string>
+    <string name="settings_storage_cached_audio">Cached audio</string>
+    <string name="settings_ai_header">AUTOMATIC AI PROCESSING</string>
+    <string name="settings_ai_toggle_label">AI processing</string>
+    <string name="settings_ai_toggle_desc">Off by default to conserve battery and data.</string>
+    <string name="settings_execution_header">AI EXECUTION MODE</string>
+    <string name="settings_execution_cloud">Cloud</string>
+    <string name="settings_execution_offline">Offline</string>
+    <string name="settings_sensitivity_header">GESTURE SENSITIVITY</string>
+    <string name="settings_sensitivity_low">Low</string>
+    <string name="settings_sensitivity_medium">Medium</string>
+    <string name="settings_sensitivity_high">High</string>
+    <string name="settings_gesture_test_header">GESTURE TEST</string>
+    <string name="settings_gesture_test_prompt">Knock twice to test</string>
+    <string name="settings_gesture_test_awaiting">Awaiting double knock</string>
+    <string name="settings_gesture_test_detected">Knock detected!</string>
+    <string name="settings_gesture_test_ready">READY</string>
+    <string name="settings_gesture_test_triggered">DETECTED!</string>
+    <string name="settings_account_header">ACTIVE ACCOUNT</string>
+    <string name="settings_sync_label">Remote database sync</string>
 
     <!-- Auth Screen -->
     <string name="auth_sign_in_title">Sign in</string>
@@ -85,9 +115,6 @@
     <string name="auth_back_cd">Back</string>
     <string name="auth_password_toggle_cd">Toggle password visibility</string>
     <string name="auth_google_logo_cd">Google logo</string>
-    <string name="buffer_duration_setting">Buffer Duration</string>
-    <string name="knock_threshold_setting">Knock Sensitivity Threshold</string>
-    <string name="knock_threshold_desc">Adjust accelerometer g-force threshold for knock detection.</string>
 
     <!-- AI Processing & Settings -->
     <string name="auto_ai_processing_title">Automatic AI Processing</string>
@@ -98,6 +125,11 @@
     <string name="processing_completed">AI processing completed</string>
     <string name="processing_idle">No AI summary generated</string>
     <string name="processing_failed">AI processing failed. Please try again.</string>
+    <string name="processing_skipped">AI Processing Skipped</string>
+    <string name="processing_skipped_subtitle">AI processing was skipped for this recording.</string>
+    <string name="processing_failed_length_title">Processing Failed (Audio Length)</string>
+    <string name="processing_failed_length_subtitle">Audio is too short or contains no detected speech.</string>
+    <string name="processing_failed_error_title">AI Processing Error</string>
     <string name="retry">Retry</string>
 
     <!-- AI Completion Notifications -->
@@ -129,4 +161,11 @@
     <string name="badge_unprocessed">UNPROCESSED</string>
     <string name="badge_processing">PROCESSING</string>
     <string name="badge_saved">SAVED</string>
+    <string name="badge_failed">FAILED</string>
+    <string name="badge_skipped">SKIPPED</string>
+    <string name="badge_length_error">LENGTH ERROR</string>
+    <string name="tab_summary">Summary</string>
+    <string name="rewind_15s">Rewind 15 seconds</string>
+    <string name="forward_15s">Forward 15 seconds</string>
+    <string name="chapters_sheet_title">Chapters</string>
 </resources>

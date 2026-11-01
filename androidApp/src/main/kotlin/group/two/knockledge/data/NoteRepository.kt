@@ -24,6 +24,9 @@ interface NoteRepository {
     /** Stores the summary on an existing note; a blank title keeps the current one. */
     suspend fun attachSummary(noteId: String, userId: String, summary: SummaryInput): Note
 
+    /** Updates the title on an existing note and queues it for sync. */
+    suspend fun renameNote(id: String, userId: String, title: String): Note
+
     /** Deletes the note and its local audio file. */
     suspend fun deleteNote(id: String, userId: String)
 

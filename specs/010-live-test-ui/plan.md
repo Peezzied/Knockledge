@@ -74,7 +74,7 @@ androidApp/src/main/kotlin/group/two/knockledge/
 │   │   └── Color.kt                      # Existing: Material 3 color scheme
 │   ├── KnockRecordingViewModel.kt        # Existing: recording session and buffer controller
 │   ├── playback/
-│   │   ├── NotePlaybackViewModel.kt      # Existing: audio playback controller
+│   │   ├── AudioPlaybackViewModel.kt     # Existing: audio playback controller
 │   │   └── AudioPlaybackControls.kt      # Existing: play/pause, seek, chapter controls
 │   ├── processing/
 │   │   ├── NoteProcessingViewModel.kt    # Existing: on-demand AI processing controller

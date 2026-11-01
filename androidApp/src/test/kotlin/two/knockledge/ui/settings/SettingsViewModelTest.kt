@@ -26,6 +26,7 @@ class SettingsViewModelTest {
         assertEquals("auto", state.summaryLanguage)
         assertEquals("qwen2b", state.summaryModel)
         assertEquals("auto", state.comprehensionMode)
+        assertEquals(true, state.remoteSyncEnabled)
     }
 
     @Test
@@ -63,5 +64,8 @@ class SettingsViewModelTest {
 
         viewModel.setComprehensionMode("local")
         assertEquals("local", viewModel.uiState.value.comprehensionMode)
+
+        viewModel.setRemoteSyncEnabled(false)
+        assertEquals(false, viewModel.uiState.value.remoteSyncEnabled)
     }
 }

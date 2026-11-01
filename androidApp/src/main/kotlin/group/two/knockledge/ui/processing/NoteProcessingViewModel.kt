@@ -122,7 +122,7 @@ class NoteProcessingViewModel(
                     _processingState.update {
                         it.copy(
                             isProcessing = false,
-                            state = NoteAiProcessingState.FAILED,
+                            state = NoteAiProcessingState.SKIPPED,
                             errorMessage = result.message,
                         )
                     }

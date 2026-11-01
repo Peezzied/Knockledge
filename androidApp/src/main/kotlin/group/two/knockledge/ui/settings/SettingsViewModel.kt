@@ -42,10 +42,11 @@ class SettingsViewModel @Inject constructor(
             combine(
                 settings.summaryModel,
                 settings.comprehensionMode,
-            ) { summaryModel, comprehension ->
-                Pair(summaryModel, comprehension)
+                settings.remoteSyncEnabled,
+            ) { summaryModel, comprehension, remoteSync ->
+                Triple(summaryModel, comprehension, remoteSync)
             }
-        ) { audio, aiList, aiPair ->
+        ) { audio, aiList, aiTriple ->
             SettingsUiState(
                 bufferDurationSeconds = audio.first,
                 minAudioSaveSeconds = audio.second,
@@ -55,8 +56,9 @@ class SettingsViewModel @Inject constructor(
                 transcriptionLocalModel = aiList[1],
                 transcriptionLanguage = aiList[2],
                 summaryLanguage = aiList[3],
-                summaryModel = aiPair.first,
-                comprehensionMode = aiPair.second,
+                summaryModel = aiTriple.first,
+                comprehensionMode = aiTriple.second,
+                remoteSyncEnabled = aiTriple.third,
             )
         }
     }.stateIn(
@@ -73,6 +75,7 @@ class SettingsViewModel @Inject constructor(
             summaryLanguage = settings.summaryLanguage.value,
             summaryModel = settings.summaryModel.value,
             comprehensionMode = settings.comprehensionMode.value,
+            remoteSyncEnabled = settings.remoteSyncEnabled.value,
         ),
     )
 
@@ -128,5 +131,10 @@ class SettingsViewModel @Inject constructor(
     /** Sets the input source. */
     override fun setInputSource(source: String) {
         settings.setInputSource(source)
+    }
+
+    /** Sets whether remote database sync is enabled. */
+    override fun setRemoteSyncEnabled(enabled: Boolean) {
+        settings.setRemoteSyncEnabled(enabled)
     }
 }

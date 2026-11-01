@@ -69,7 +69,7 @@ Reuse existing pre-built UI components directly without creating redundant wrapp
 ### Decision
 Maintain direct ViewModel-to-Repository and Controller bindings:
 - `KnockRecordingViewModel` manages the active recording and buffer status via `KnockledgeController`.
-- `NotePlaybackViewModel` manages audio playback via `AudioPlayer`.
+- `AudioPlaybackViewModel` manages audio playback via `AudioPlayer`.
 - `NoteProcessingViewModel` manages transcription and summary triggering via `NoteRepository` and `RewindPipeline`.
 - `SettingsViewModel` manages runtime preferences via `AppSettings`.
 - `AuthViewModel` manages authentication via `AuthRepository`.

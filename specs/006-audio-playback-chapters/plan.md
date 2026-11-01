@@ -75,7 +75,7 @@ androidApp/src/main/kotlin/group/two/knockledge/
 └── ui/
     └── playback/
         ├── AudioPlaybackControls.kt    # Stateless Compose player & chapter seekbar
-        └── NotePlaybackViewModel.kt    # ViewModel managing playback session
+        └── AudioPlaybackViewModel.kt   # ViewModel managing playback session
 
 androidApp/src/test/kotlin/two/knockledge/
 └── audio/

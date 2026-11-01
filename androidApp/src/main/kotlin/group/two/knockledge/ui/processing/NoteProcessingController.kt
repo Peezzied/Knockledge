@@ -20,7 +20,10 @@ enum class NoteAiProcessingState {
     COMPLETED,
 
     /** Processing encountered an error; retry is permitted. */
-    FAILED
+    FAILED,
+
+    /** Processing was skipped (e.g. auto AI disabled or audio skipped). */
+    SKIPPED
 }
 
 /**

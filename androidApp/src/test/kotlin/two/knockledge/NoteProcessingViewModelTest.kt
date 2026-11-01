@@ -62,6 +62,8 @@ class NoteProcessingViewModelTest {
             return note!!
         }
 
+        override suspend fun renameNote(id: String, userId: String, title: String): Note = note!!.copy(title = title)
+
         override suspend fun deleteNote(id: String, userId: String) = Unit
         override suspend fun syncPending(userId: String) = Unit
     }
@@ -195,6 +197,47 @@ class NoteProcessingViewModelTest {
         assertEquals(NoteAiProcessingState.FAILED, state.state)
         assertFalse(state.isProcessing)
         assertEquals("Audio file missing.", state.errorMessage)
+    }
+
+    @Test
+    fun processNoteSetsSkippedStateWhenInsufficientSpeechDetected(): Unit = runBlocking {
+        val file = File.createTempFile("silent_audio", ".wav")
+        val pcm = ShortArray(16_000) { 0 }
+        val bytes = ByteArray(44 + pcm.size * 2)
+        ByteBuffer.wrap(bytes, 44, pcm.size * 2).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(pcm)
+        file.writeBytes(bytes)
+
+        val note = Note(
+            id = "note-silent",
+            userId = user.uid,
+            title = "Silent Note",
+            createdAtEpochMs = 1_000L,
+            updatedAtEpochMs = 1_000L,
+            audio = AudioMetadata(file.absolutePath, null, 1_000L, 16_000, TriggerType.GESTURE),
+        )
+        val notesRepo = FakeNotes(note)
+        val authRepo = FakeAuth(user)
+        val pipeline = RewindPipeline(
+            transcriber = PlaceholderTranscriber(),
+            preprocessor = DefaultAudioPreprocessor(),
+            summarizer = PlaceholderSummarizer(),
+        )
+
+        val vm = NoteProcessingViewModel(
+            notes = notesRepo,
+            auth = authRepo,
+            pipeline = pipeline,
+            coroutineScope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        vm.processNote("note-silent")
+        awaitIdle(vm)
+
+        val state = vm.processingState.value
+        assertEquals(NoteAiProcessingState.SKIPPED, state.state)
+        assertFalse(state.isProcessing)
+        assertTrue(state.errorMessage?.contains("speech") == true || state.errorMessage?.contains("1.0s") == true)
+        file.delete()
     }
 
     @Test

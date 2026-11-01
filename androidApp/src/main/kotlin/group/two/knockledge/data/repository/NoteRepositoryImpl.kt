@@ -103,6 +103,10 @@ class NoteRepositoryImpl(
             )
         }
 
+    /** Updates the title on an existing note. */
+    override suspend fun renameNote(id: String, userId: String, title: String): Note =
+        update(id, userId) { it.copy(title = title) }
+
     /** Deletes the row first, then its audio file; an unknown id is a no-op. */
     override suspend fun deleteNote(id: String, userId: String) {
         val note = notes.getNote(id, userId) ?: return

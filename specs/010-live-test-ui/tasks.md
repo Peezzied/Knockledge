@@ -54,7 +54,7 @@
 **Independent Test**: Select a captured note from the list, press play, scrub time slider, tap chapter marker, and verify audible playback and timestamp seeking.
 
 - [X] T009 [P] [US2] Create `NoteListItem` composable and notes list column in `androidApp/src/main/kotlin/group/two/knockledge/ui/tabs/NotesTab.kt` observing `NoteRepository.observeNotes(userId)`
-- [X] T010 [US2] Integrate `AudioPlaybackControls` with `NotePlaybackViewModel` for the selected note in `androidApp/src/main/kotlin/group/two/knockledge/ui/tabs/NotesTab.kt`
+- [X] T010 [US2] Integrate `AudioPlaybackControls` with `AudioPlaybackViewModel` for the selected note in `androidApp/src/main/kotlin/group/two/knockledge/ui/tabs/NotesTab.kt`
 - [X] T011 [US2] Add empty state message and note deletion handler in `androidApp/src/main/kotlin/group/two/knockledge/ui/tabs/NotesTab.kt`
 
 **Checkpoint**: User Stories 1 and 2 work independently. Captured notes can be reviewed and played immediately.

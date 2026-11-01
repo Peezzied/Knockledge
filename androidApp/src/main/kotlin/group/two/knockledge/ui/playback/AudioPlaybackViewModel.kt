@@ -12,9 +12,9 @@ import javax.inject.Inject
 /**
  * ViewModel managing audio playback state and controls for a note.
  */
-class NotePlaybackViewModel @Inject constructor(
-    private val audioPlayer: AudioPlayer
-) : ViewModel(), NotePlaybackController {
+class AudioPlaybackViewModel @Inject constructor(
+    private val audioPlayer: AudioPlayer,
+) : ViewModel(), AudioPlaybackController {
 
     override val playbackState: StateFlow<AudioPlaybackState> = audioPlayer.state
 
@@ -24,6 +24,10 @@ class NotePlaybackViewModel @Inject constructor(
      * Initializes playback for the specified [note].
      */
     fun loadNote(note: Note) {
+        if ((currentNote?.id == note.id) && (playbackState.value.durationMs > 0)) {
+            currentNote = note
+            return
+        }
         currentNote = note
         val chapters = note.summary?.chapterMarkers ?: emptyList()
         val localPath = note.audio.localPath
@@ -45,7 +49,7 @@ class NotePlaybackViewModel @Inject constructor(
         if (state.isPlaying) {
             audioPlayer.pause()
         } else {
-            if (state.currentPositionMs >= state.durationMs && state.durationMs > 0) {
+            if ((state.currentPositionMs >= state.durationMs) && (state.durationMs > 0)) {
                 audioPlayer.seekTo(0)
             }
             audioPlayer.resume()
@@ -60,7 +64,7 @@ class NotePlaybackViewModel @Inject constructor(
         audioPlayer.seekTo(chapter.startTimeMs)
     }
 
-    public override fun onCleared() {
+    override fun onCleared() {
         super.onCleared()
         audioPlayer.stop()
     }

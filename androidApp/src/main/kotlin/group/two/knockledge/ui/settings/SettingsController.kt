@@ -14,6 +14,7 @@ data class SettingsUiState(
     val summaryLanguage: String = "auto",
     val summaryModel: String = "qwen2b",
     val comprehensionMode: String = "auto",
+    val remoteSyncEnabled: Boolean = true,
 )
 
 /** Contract for updating application settings from the settings screen. */
@@ -50,4 +51,7 @@ interface SettingsController {
 
     /** Sets the input source (mic, mic_device). */
     fun setInputSource(source: String)
+
+    /** Sets whether remote database sync is enabled. */
+    fun setRemoteSyncEnabled(enabled: Boolean)
 }

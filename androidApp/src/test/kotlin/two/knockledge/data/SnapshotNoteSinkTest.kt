@@ -81,6 +81,8 @@ class SnapshotNoteSinkTest {
             return stub(noteId, userId)
         }
 
+        override suspend fun renameNote(id: String, userId: String, title: String): Note = stub(id, userId).copy(title = title)
+
         override suspend fun deleteNote(id: String, userId: String) = Unit
 
         override suspend fun syncPending(userId: String) = Unit

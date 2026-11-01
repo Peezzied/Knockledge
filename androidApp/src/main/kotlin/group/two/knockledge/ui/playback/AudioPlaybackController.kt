@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * High-level playback controls contract for Compose UI.
  */
-interface NotePlaybackController {
+interface AudioPlaybackController {
     /**
      * Observable playback state for the currently loaded note.
      */

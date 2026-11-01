@@ -77,15 +77,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import group.two.knockledge.R
 import group.two.knockledge.audio.AudioPlaybackState
-import group.two.knockledge.data.model.ChapterMarker
 import group.two.knockledge.data.model.Note
 import group.two.knockledge.data.remote.GoogleIdTokenClient
 import group.two.knockledge.di.KnockledgeComponent
 import group.two.knockledge.pipeline.RewindStage
 import group.two.knockledge.ui.auth.AuthScreen
 import group.two.knockledge.ui.auth.AuthViewModel
-import group.two.knockledge.ui.playback.AudioPlaybackControls
-import group.two.knockledge.ui.playback.NotePlaybackViewModel
+import group.two.knockledge.ui.playback.AudioPlaybackScreen
+import group.two.knockledge.ui.playback.AudioPlaybackViewModel
 import group.two.knockledge.ui.processing.NoteProcessingControls
 import group.two.knockledge.ui.processing.NoteProcessingUiState
 import group.two.knockledge.ui.processing.NoteProcessingViewModel
@@ -800,8 +799,6 @@ fun HomeScreen(
     onSelectNote: (Note) -> Unit,
     onDeleteNote: (String) -> Unit,
     onTogglePlayPause: () -> Unit,
-    onSeekTo: (Long) -> Unit,
-    onSelectChapter: (ChapterMarker) -> Unit,
     onProcessNote: (String) -> Unit,
     onManualSave: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -824,8 +821,6 @@ fun HomeScreen(
             onSelectNote = onSelectNote,
             onDeleteNote = onDeleteNote,
             onTogglePlayPause = onTogglePlayPause,
-            onSeekTo = onSeekTo,
-            onSelectChapter = onSelectChapter,
             onProcessNote = onProcessNote,
             modifier = Modifier.padding(innerPadding),
             onNavigateToSettings = onNavigateToSettings,
@@ -845,8 +840,6 @@ fun HomeRecordingsContent(
     onSelectNote: (Note) -> Unit,
     onDeleteNote: (String) -> Unit,
     onTogglePlayPause: () -> Unit,
-    onSeekTo: (Long) -> Unit,
-    onSelectChapter: (ChapterMarker) -> Unit,
     onProcessNote: (String) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToSettings: () -> Unit = {},
@@ -974,9 +967,7 @@ fun HomeRecordingsContent(
                                 onSelectNote(selected)
                             },
                             onTogglePlayNote = { selected ->
-                                if (selectedNote?.id != selected.id) {
-                                    onSelectNote(selected)
-                                }
+                                onSelectNote(selected)
                                 onTogglePlayPause()
                             },
                             onDeleteNote = onDeleteNote,
@@ -990,24 +981,6 @@ fun HomeRecordingsContent(
                             HorizontalDivider()
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            Text(
-                                text = "Playback: ${selectedNote.title.ifBlank { rememberFormattedDateTitle(selectedNote.createdAtEpochMs) }}",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            AudioPlaybackControls(
-                                state = playbackState,
-                                chapters = selectedNote.summary?.chapterMarkers ?: emptyList(),
-                                transcript = selectedNote.transcript,
-                                onTogglePlayPause = onTogglePlayPause,
-                                onSeekTo = onSeekTo,
-                                onSelectChapter = onSelectChapter,
-                            )
-                        }
-
-                        item {
-                            Spacer(modifier = Modifier.height(8.dp))
                             NoteProcessingControls(
                                 uiState = processingUiState,
                                 onProcessNote = { onProcessNote(selectedNote.id) },
@@ -1098,7 +1071,7 @@ fun LiveTestAppShell(
         KnockRecordingViewModel(graph.controller, appSettings)
     }
     val playbackViewModel = remember(component, audioPlayer) {
-        NotePlaybackViewModel(audioPlayer)
+        AudioPlaybackViewModel(audioPlayer)
     }
     val processingViewModel = remember(component, dataGraph, pipeline, aiNotifier) {
         NoteProcessingViewModel(dataGraph.notes, dataGraph.auth, pipeline, aiNotifier)
@@ -1186,6 +1159,7 @@ fun LiveTestAppShell(
                         onSelectNote = { note ->
                             selectedNoteId = note.id
                             playbackViewModel.loadNote(note)
+                            navController.navigate("playback/${note.id}")
                         },
                         onDeleteNote = { noteId ->
                             scope.launch {
@@ -1193,8 +1167,6 @@ fun LiveTestAppShell(
                             }
                         },
                         onTogglePlayPause = playbackViewModel::togglePlayPause,
-                        onSeekTo = playbackViewModel::seekTo,
-                        onSelectChapter = playbackViewModel::selectChapter,
                         onProcessNote = processingViewModel::processNote,
                         onManualSave = {
                             navController.navigate("record")
@@ -1309,9 +1281,53 @@ fun LiveTestAppShell(
                             onAutoAiChanged = appSettings::setAutoAiProcessingEnabled,
                             onBufferDurationChanged = settingsViewModel::setBufferDurationSeconds,
                             onKnockThresholdChanged = settingsViewModel::setKnockSensorThreshold,
+                            onExecutionModeChanged = { mode ->
+                                settingsViewModel.setTranscriptionMode(mode)
+                                settingsViewModel.setComprehensionMode(mode)
+                            },
+                            onRemoteSyncChanged = settingsViewModel::setRemoteSyncEnabled,
                             onSignOut = authViewModel::signOut,
                             onNavigateToHome = { navController.popBackStack() },
                         )
+                    }
+                }
+
+                composable(
+                    route = "playback/{noteId}",
+                    enterTransition = { fadeIn(animationSpec = tween(250)) },
+                    exitTransition = { fadeOut(animationSpec = tween(250)) },
+                    popEnterTransition = { fadeIn(animationSpec = tween(250)) },
+                    popExitTransition = { fadeOut(animationSpec = tween(250)) },
+                ) { backStackEntry ->
+                    val noteId = backStackEntry.arguments?.getString("noteId")
+                    val noteForPlayback = notes.firstOrNull { it.id == noteId } ?: selectedNote
+                    if (noteForPlayback != null) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background,
+                        ) {
+                            AudioPlaybackScreen(
+                                note = noteForPlayback,
+                                playbackViewModel = playbackViewModel,
+                                onBackClick = { navController.popBackStack() },
+                                onDeleteClick = {
+                                    scope.launch {
+                                        dataGraph.notes.deleteNote(noteForPlayback.id, activeUserId)
+                                        navController.popBackStack()
+                                    }
+                                },
+                                onRename = { newTitle ->
+                                    scope.launch {
+                                        dataGraph.notes.renameNote(noteForPlayback.id, activeUserId, newTitle)
+                                    }
+                                },
+                                onProcessWithAi = {
+                                    processingViewModel.processNote(noteForPlayback.id)
+                                },
+                                processingUiState = processingUiState,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
             }
@@ -1413,8 +1429,6 @@ private fun HomeScreenPreview() {
                         onSelectNote = {},
                         onDeleteNote = {},
                         onTogglePlayPause = {},
-                        onSeekTo = {},
-                        onSelectChapter = {},
                         onProcessNote = {},
                         onManualSave = { navController.navigate("record") },
                         onNavigateToSettings = {},

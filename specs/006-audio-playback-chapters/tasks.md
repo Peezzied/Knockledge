@@ -30,7 +30,7 @@
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 - [x] T003 [P] Define `AudioPlaybackState` data class and `AudioPlayer` interface in `androidApp/src/main/kotlin/group/two/knockledge/audio/AudioPlayer.kt`
-- [x] T004 [P] Define `NotePlaybackController` interface in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/NotePlaybackController.kt`
+- [x] T004 [P] Define `AudioPlaybackController` interface in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/AudioPlaybackController.kt`
 - [x] T005 Provide Dagger DI binding for `AudioPlayer` in `androidApp/src/main/kotlin/group/two/knockledge/di/AudioModule.kt`
 
 **Checkpoint**: Core playback interfaces ready - user story implementation can begin
@@ -50,7 +50,7 @@
 ### Implementation for User Story 1
 
 - [x] T007 [US1] Implement `AndroidAudioPlayer` wrapping native `android.media.MediaPlayer` with coroutine position ticker in `androidApp/src/main/kotlin/group/two/knockledge/audio/AndroidAudioPlayer.kt`
-- [x] T008 [US1] Implement `NotePlaybackViewModel` managing audio playback state and controls in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/NotePlaybackViewModel.kt`
+- [x] T008 [US1] Implement `AudioPlaybackViewModel` managing audio playback state and controls in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/AudioPlaybackViewModel.kt`
 - [x] T009 [US1] Implement basic `AudioPlaybackControls` composable with play, pause, seekbar, and duration display in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/AudioPlaybackControls.kt`
 
 **Checkpoint**: User Story 1 is functional and testable independently as the MVP
@@ -70,7 +70,7 @@
 ### Implementation for User Story 2
 
 - [x] T011 [US2] Add chapter tracking and reactive `activeChapter` calculation to `AndroidAudioPlayer` in `androidApp/src/main/kotlin/group/two/knockledge/audio/AndroidAudioPlayer.kt`
-- [x] T012 [US2] Add `selectChapter(chapter: ChapterMarker)` forwarding logic to `NotePlaybackViewModel` in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/NotePlaybackViewModel.kt`
+- [x] T012 [US2] Add `selectChapter(chapter: ChapterMarker)` forwarding logic to `AudioPlaybackViewModel` in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/AudioPlaybackViewModel.kt`
 - [x] T013 [US2] Implement visual chapter divisions on the progress slider and selectable chapter list in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/AudioPlaybackControls.kt`
 - [x] T014 [P] [US2] Add stateless Compose `@Preview` functions for chapter playback controls in `androidApp/src/main/kotlin/group/two/knockledge/ui/playback/AudioPlaybackControls.kt`
 
