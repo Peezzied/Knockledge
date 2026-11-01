@@ -736,6 +736,7 @@ fun HomeRecordingsContent(
                             AudioPlaybackControls(
                                 state = playbackState,
                                 chapters = selectedNote.summary?.chapterMarkers ?: emptyList(),
+                                transcript = selectedNote.transcript,
                                 onTogglePlayPause = onTogglePlayPause,
                                 onSeekTo = onSeekTo,
                                 onSelectChapter = onSelectChapter,
@@ -800,43 +801,7 @@ fun HomeRecordingsContent(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                    }
 
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                                    Text(
-                                        text = stringResource(R.string.transcript_label),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    val transcript = selectedNote.transcript
-                                    if (transcript != null) {
-                                        if (transcript.sentences.isNotEmpty()) {
-                                            transcript.sentences.forEach { sentence ->
-                                                val startSec = sentence.startTimeMs / 1000L
-                                                val startFmt = String.format(
-                                                    Locale.US,
-                                                    "%d:%02d",
-                                                    startSec / 60,
-                                                    startSec % 60,
-                                                )
-                                                Text(
-                                                    text = "[$startFmt] ${sentence.speaker}: ${sentence.text}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                )
-                                            }
-                                        } else {
-                                            Text(
-                                                text = transcript.fullText,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                            )
-                                        }
-                                    } else {
-                                        Text(
-                                            text = stringResource(R.string.no_transcript),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
                                     }
                                 }
                             }
