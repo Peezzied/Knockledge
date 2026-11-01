@@ -736,6 +736,7 @@ fun HomeRecordingsContent(
                             AudioPlaybackControls(
                                 state = playbackState,
                                 chapters = selectedNote.summary?.chapterMarkers ?: emptyList(),
+                                transcript = selectedNote.transcript,
                                 onTogglePlayPause = onTogglePlayPause,
                                 onSeekTo = onSeekTo,
                                 onSelectChapter = onSelectChapter,
@@ -800,38 +801,7 @@ fun HomeRecordingsContent(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
-                                    }
 
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                                    Text(
-                                        text = stringResource(R.string.transcript_label),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    val transcript = selectedNote.transcript
-                                    if (transcript != null) {
-                                        Text(
-                                            text = transcript.fullText,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
-                                        if (transcript.sentences.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            transcript.sentences.forEach { sentence ->
-                                                val startSec = sentence.startTimeMs / 1000L
-                                                val startFmt = String.format(Locale.US, "%d:%02d", startSec / 60, startSec % 60)
-                                                Text(
-                                                    text = "[$startFmt] ${sentence.speaker}: ${sentence.text}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        Text(
-                                            text = stringResource(R.string.no_transcript),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
                                     }
                                 }
                             }
@@ -905,7 +875,8 @@ fun LiveTestAppShell(
         val notesFlow = remember(dataGraph, activeUserId) { dataGraph.notes.observeNotes(activeUserId) }
         val notes by notesFlow.collectAsState(initial = emptyList())
 
-        var selectedNote by remember { mutableStateOf<Note?>(null) }
+        var selectedNoteId by remember { mutableStateOf<String?>(null) }
+        val selectedNote = notes.firstOrNull { it.id == selectedNoteId }
         var showSettings by remember { mutableStateOf(false) }
         var showRecord by remember { mutableStateOf(false) }
         val playbackState by playbackViewModel.playbackState.collectAsState()
@@ -951,15 +922,12 @@ fun LiveTestAppShell(
                 playbackState = playbackState,
                 processingUiState = processingUiState,
                 onSelectNote = { note ->
-                    selectedNote = note
+                    selectedNoteId = note.id
                     playbackViewModel.loadNote(note)
                 },
                 onDeleteNote = { noteId ->
                     scope.launch {
                         dataGraph.notes.deleteNote(noteId, activeUserId)
-                        if (selectedNote?.id == noteId) {
-                            selectedNote = null
-                        }
                     }
                 },
                 onTogglePlayPause = playbackViewModel::togglePlayPause,
