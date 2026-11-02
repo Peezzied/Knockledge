@@ -15,14 +15,6 @@ object TranscriptionHints {
         "Usapan ito sa Taglish, halo ang Tagalog at English. Okay, so ayun nga, mag-meet tayo bukas ng hapon."
 }
 
-/** Qwen chat template (ChatML), with thinking turned off for a fast, direct answer. */
-object QwenChatFormat {
-    /** Wraps [system] and [user] in ChatML, with an empty think block to skip reasoning. */
-    fun build(system: String, user: String): String =
-        "<|im_start|>system\n$system<|im_end|>\n" +
-            "<|im_start|>user\n$user<|im_end|>\n" +
-            "<|im_start|>assistant\n<think>\n\n</think>\n\n"
-}
 
 /** Removes Whisper's non-speech annotations and hallucinated repeats. */
 object TranscriptCleaner {

@@ -1,6 +1,5 @@
 package group.two.knockledge
 
-import group.two.knockledge.pipeline.QwenChatFormat
 import group.two.knockledge.pipeline.SummarizerPrompt
 import group.two.knockledge.pipeline.SummaryParser
 import group.two.knockledge.pipeline.SummaryRequest
@@ -57,13 +56,6 @@ class TextFormatsTest {
         val raw = " [BLANK_AUDIO] Okay so ayun. (music) Okay so ayun. Okay so ayun. Tara na, kain tayo. [Music]"
         assertEquals("Okay so ayun. Tara na, kain tayo.", TranscriptCleaner.clean(raw))
         assertEquals("", TranscriptCleaner.clean("[BLANK_AUDIO] (Music)  "))
-    }
-
-    @Test
-    fun chatFormatDisablesThinking() {
-        val p = QwenChatFormat.build("SYS", "USER")
-        assertTrue(p.startsWith("<|im_start|>system\nSYS<|im_end|>\n<|im_start|>user\nUSER<|im_end|>\n"))
-        assertTrue(p.endsWith("<|im_start|>assistant\n<think>\n\n</think>\n\n"))
     }
 
     @Test
