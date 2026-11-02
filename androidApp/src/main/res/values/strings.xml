@@ -119,6 +119,7 @@
     <string name="settings_gesture_test_active_status">ACTIVE</string>
     <string name="settings_account_header">ACTIVE ACCOUNT</string>
     <string name="settings_sync_label">Remote database sync</string>
+    <string name="settings_sync_now_btn">Sync now</string>
 
     <!-- Auth Screen -->
     <string name="auth_sign_in_title">Sign in</string>

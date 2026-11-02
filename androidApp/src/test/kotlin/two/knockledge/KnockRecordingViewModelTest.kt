@@ -111,6 +111,22 @@ class KnockRecordingViewModelTest {
     }
 
     @Test
+    fun canCaptureReflectsMinimumBufferedAudio() = runBlocking {
+        val controller = createController()
+        val settings = AppSettings(MemoryStore(), "m")
+        val vm = KnockRecordingViewModel(controller, settings)
+
+        assertFalse(vm.uiState.value.canCapture)
+
+        vm.startSession()
+        awaitUi { vm.uiState.value.isRecording }
+        // EmptySource writes no audio, so the minimum buffered window is never reached.
+        assertFalse(vm.uiState.value.canCapture)
+
+        vm.stopSession()
+    }
+
+    @Test
     fun bufferDurationClampingPropagatesToUiState() = runBlocking {
         val controller = createController()
         val settings = AppSettings(MemoryStore(), "m")

@@ -3,6 +3,7 @@ package group.two.knockledge.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -11,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +41,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,12 +62,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import group.two.knockledge.R
+import group.two.knockledge.data.model.Note
 import group.two.knockledge.ui.theme.AccentGold
 import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.KnockledgeTheme
@@ -81,13 +88,7 @@ import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 
-private data class SuctionParticle(
-    val initialAngleRad: Float,
-    val initialRadiusDp: Float,
-    val speedMultiplier: Float,
-    val particleSizeDp: Float,
-    val color: Color,
-)
+
 
 /**
  * Transparent top bar for [RecordScreen] displaying the session timer and compact Auto AI toggle.
@@ -107,14 +108,31 @@ fun RecordTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = stringResource(
-                R.string.recording_session_timer,
-                formatTimerSeconds(bufferedSeconds),
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = AccentGold,
-        )
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = Color.Black,
+            border = BorderStroke(1.dp, Color(0xFF33312B)),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = "DUR ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF8A8275),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                )
+                Text(
+                    text = formatTimerSeconds(bufferedSeconds),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                )
+            }
+        }
 
         FilterChip(
             selected = autoAiEnabled,
@@ -163,73 +181,9 @@ fun RecordScreen(
     onAutoAiChanged: (Boolean) -> Unit = {},
     onDurationChange: (Int) -> Unit = {},
     onSimulateKnock: () -> Unit = {},
+    notes: List<Note> = emptyList(),
+    onSelectNote: (Note) -> Unit = {},
 ) {
-    val scope = rememberCoroutineScope()
-    var isSinking by remember { mutableStateOf(false) }
-
-    val suctionAnim = remember { Animatable(0f) }
-    val particles = remember {
-        val rng = Random(42L)
-        val particleColors = listOf(AccentGold, AntiqueBrass, WaveformTeal, ParchmentCream)
-        List(32) {
-            SuctionParticle(
-                initialAngleRad = rng.nextFloat() * (2f * Math.PI.toFloat()),
-                initialRadiusDp = 95f + rng.nextFloat() * 55f,
-                speedMultiplier = 0.85f + rng.nextFloat() * 0.45f,
-                particleSizeDp = 2.5f + rng.nextFloat() * 2.5f,
-                color = particleColors[rng.nextInt(particleColors.size)],
-            )
-        }
-    }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse_rings")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.98f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulse_scale",
-    )
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulse_alpha",
-    )
-    val glowHaloAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 0.65f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "glow_halo_alpha",
-    )
-
-    val buttonPressScale by animateFloatAsState(
-        targetValue = if (isSinking) 0.82f else 1.0f,
-        animationSpec = if (isSinking) {
-            tween(durationMillis = 100, easing = FastOutLinearInEasing)
-        } else {
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow,
-            )
-        },
-        label = "button_press_scale",
-    )
-
-    val suctionDepthAlpha by animateFloatAsState(
-        targetValue = if (isSinking) 0.50f else 1.0f,
-        animationSpec = tween(durationMillis = 100),
-        label = "suction_depth_alpha",
-    )
-
     var isButtonInPosition by remember { mutableStateOf(recordingUiState.isRecording) }
     var isContentVisible by remember { mutableStateOf(recordingUiState.isRecording) }
 
@@ -357,133 +311,24 @@ fun RecordScreen(
                     }
                 }
 
-                // Central Mic Ring Container + Glowing Halo & Black Hole Suction Vortex
-                Box(
-                    modifier = Modifier
-                        .size(240.dp)
-                        .graphicsLayer {
-                            translationY = buttonOffsetY.dp.toPx()
-                            scaleX = buttonScale * buttonPressScale
-                            scaleY = buttonScale * buttonPressScale
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    // Outer Radial Glowing Halo
-                    Canvas(
-                        modifier = Modifier
-                            .size(200.dp)
-                            .scale(if (recordingUiState.isRecording) pulseScale else 1f),
-                    ) {
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    AccentGold.copy(
-                                        alpha = (if (recordingUiState.isRecording) glowHaloAlpha else 0.35f) * suctionDepthAlpha,
-                                    ),
-                                    AntiqueBrass.copy(
-                                        alpha = (if (recordingUiState.isRecording) glowHaloAlpha * 0.5f else 0.15f) * suctionDepthAlpha,
-                                    ),
-                                    Color.Transparent,
-                                ),
-                                center = center,
-                                radius = size.width / 2f,
-                            ),
-                            radius = size.width / 2f,
-                        )
-                    }
-
-                    // Black hole particle suction overlay
-                    if (suctionAnim.value > 0f && suctionAnim.value < 1f) {
-                        val progress = suctionAnim.value
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-
-                            particles.forEach { p ->
-                                val pProgress = (progress * p.speedMultiplier).coerceIn(0f, 1f)
-                                if (pProgress in 0.01f..0.99f) {
-                                    val currentRadiusPx = p.initialRadiusDp.dp.toPx() * (1f - pProgress.toDouble().pow(2.2).toFloat())
-                                    val currentAngle = p.initialAngleRad + pProgress * 1.8f
-                                    val px = centerX + currentRadiusPx * cos(currentAngle)
-                                    val py = centerY + currentRadiusPx * sin(currentAngle)
-                                    val alpha = (1f - pProgress * pProgress) * 0.92f
-                                    val radiusPx = (p.particleSizeDp.dp.toPx() * (1f - pProgress * 0.5f)).coerceAtLeast(1.5f)
-
-                                    drawCircle(
-                                        color = p.color.copy(alpha = alpha),
-                                        radius = radiusPx,
-                                        center = Offset(px, py),
-                                    )
-                                }
-                            }
+                // Central Capture Circle Button
+                CaptureCircleButton(
+                    isRecording = recordingUiState.isRecording,
+                    isSavingSnapshot = recordingUiState.isSavingSnapshot,
+                    canCapture = recordingUiState.canCapture,
+                    onClick = {
+                        if (recordingUiState.isRecording) {
+                            onManualSave()
+                        } else {
+                            onStartSession()
                         }
-                    }
-
-                    // Interactive Mic Ring Button with Pixelated Rings
-                    Box(
-                        modifier = Modifier
-                            .size(180.dp)
-                            .padding(8.dp)
-                            .clip(CircleShape)
-                            .clickable(
-                                enabled = !recordingUiState.isSavingSnapshot,
-                                onClick = {
-                                    scope.launch {
-                                        isSinking = true
-                                        suctionAnim.snapTo(0f)
-                                        suctionAnim.animateTo(
-                                            targetValue = 1f,
-                                            animationSpec = tween(
-                                                durationMillis = 480,
-                                                easing = FastOutLinearInEasing,
-                                            ),
-                                        )
-                                        isSinking = false
-                                    }
-                                    if (recordingUiState.isRecording) {
-                                        onManualSave()
-                                    } else {
-                                        onStartSession()
-                                    }
-                                },
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        // Outer Pixelated Ring
-                        PixelatedRing(
-                            radius = 76.dp,
-                            pixelSize = 3.dp,
-                            color = AccentGold.copy(
-                                alpha = (if (recordingUiState.isRecording) pulseAlpha else 0.5f) * suctionDepthAlpha,
-                            ),
-                            modifier = Modifier
-                                .size(160.dp)
-                                .scale(if (recordingUiState.isRecording) pulseScale else 1f),
-                        )
-
-                        // Inner Pixelated Ring
-                        PixelatedRing(
-                            radius = 64.dp,
-                            pixelSize = 3.dp,
-                            color = AccentGold.copy(
-                                alpha = (if (recordingUiState.isRecording) (pulseAlpha * 0.8f) else 0.35f) * suctionDepthAlpha,
-                            ),
-                            modifier = Modifier
-                                .size(136.dp)
-                                .scale(if (recordingUiState.isRecording) (pulseScale * 0.98f) else 1f),
-                        )
-
-                        // Center Mic Pill Icon - Glowing Parchment Cream
-                        Box(
-                            modifier = Modifier
-                                .width(24.dp)
-                                .height(40.dp)
-                                .scale(if (isSinking) 0.85f else 1.0f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(ParchmentCream.copy(alpha = suctionDepthAlpha)),
-                        )
-                    }
-                }
+                    },
+                    modifier = Modifier.graphicsLayer {
+                        translationY = buttonOffsetY.dp.toPx()
+                        scaleX = buttonScale
+                        scaleY = buttonScale
+                    },
+                )
 
                 // Remaining content following the central mic ring button
                 Column(
@@ -547,7 +392,11 @@ fun RecordScreen(
                         textAlign = TextAlign.Center,
                     )
 
-                    StackedCaptureDeck()
+                    StackedCaptureDeck(
+                        notes = notes,
+                        onSelectNote = onSelectNote,
+                        onNavigateToHome = onNavigateToHome,
+                    )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -619,10 +468,12 @@ fun CaptureRowCard(
     duration: String,
     status: String,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
             .background(SurfaceContainerHigh, RoundedCornerShape(8.dp))
             .border(
                 border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
@@ -630,6 +481,7 @@ fun CaptureRowCard(
                 ),
                 shape = RoundedCornerShape(8.dp),
             )
+            .clickable(onClick = onClick)
             .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -690,8 +542,36 @@ fun CaptureRowCard(
 
 @Composable
 fun StackedCaptureDeck(
+    notes: List<Note> = emptyList(),
+    onSelectNote: (Note) -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val frontNote = notes.getOrNull(0)
+    val behindNote = notes.getOrNull(1)
+
+    val frontTitle = frontNote?.title?.ifBlank { "Untitled Note" } ?: "Photosynthesis"
+    val frontDate = frontNote?.let { formatNoteDate(it.createdAtEpochMs) } ?: "OCT21 12:04"
+    val frontDuration = frontNote?.let { formatNoteDuration(it.audio.durationMs) } ?: "0:25"
+    val frontStatus = frontNote?.let {
+        if (it.summary != null || it.transcript != null) {
+            stringResource(R.string.processed_label)
+        } else {
+            stringResource(R.string.unprocessed_label)
+        }
+    } ?: stringResource(R.string.unprocessed_label)
+
+    val behindTitle = behindNote?.title?.ifBlank { "Untitled Note" } ?: "Cell Division"
+    val behindDate = behindNote?.let { formatNoteDate(it.createdAtEpochMs) } ?: "OCT20 16:30"
+    val behindDuration = behindNote?.let { formatNoteDuration(it.audio.durationMs) } ?: "0:42"
+    val behindStatus = behindNote?.let {
+        if (it.summary != null || it.transcript != null) {
+            stringResource(R.string.processed_label)
+        } else {
+            stringResource(R.string.unprocessed_label)
+        }
+    } ?: stringResource(R.string.processed_label)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -699,10 +579,13 @@ fun StackedCaptureDeck(
         contentAlignment = Alignment.TopCenter,
     ) {
         CaptureRowCard(
-            title = "Cell Division",
-            date = "OCT20 16:30",
-            duration = "0:42",
-            status = stringResource(R.string.processed_label),
+            title = behindTitle,
+            date = behindDate,
+            duration = behindDuration,
+            status = behindStatus,
+            onClick = {
+                onNavigateToHome()
+            },
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .offset(y = 34.dp)
@@ -710,15 +593,32 @@ fun StackedCaptureDeck(
         )
 
         CaptureRowCard(
-            title = "Photosynthesis",
-            date = "OCT21 12:04",
-            duration = "0:25",
-            status = stringResource(R.string.unprocessed_label),
+            title = frontTitle,
+            date = frontDate,
+            duration = frontDuration,
+            status = frontStatus,
+            onClick = {
+                if (frontNote != null) {
+                    onSelectNote(frontNote)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .offset(y = 0.dp),
         )
     }
+}
+
+private fun formatNoteDate(epochMs: Long): String {
+    val sdf = java.text.SimpleDateFormat("MMMdd HH:mm", Locale.US)
+    return sdf.format(java.util.Date(epochMs)).uppercase(Locale.US)
+}
+
+private fun formatNoteDuration(durationMs: Long): String {
+    val totalSeconds = (durationMs / 1000L).toInt()
+    val m = totalSeconds / 60
+    val s = totalSeconds % 60
+    return String.format(Locale.US, "%d:%02d", m, s)
 }
 
 private fun formatTimerSeconds(seconds: Int): String {
@@ -746,6 +646,8 @@ fun RecordScreen(
     modifier: Modifier = Modifier,
     autoAiEnabled: Boolean = true,
     onAutoAiChanged: (Boolean) -> Unit = {},
+    notes: List<Note> = emptyList(),
+    onSelectNote: (Note) -> Unit = {},
 ) {
     val recordingUiState by recordingViewModel.uiState.collectAsState()
 
@@ -772,6 +674,8 @@ fun RecordScreen(
         onAutoAiChanged = onAutoAiChanged,
         onDurationChange = recordingViewModel::setBufferDurationSeconds,
         onSimulateKnock = recordingViewModel::triggerManualSave,
+        notes = notes,
+        onSelectNote = onSelectNote,
     )
 }
 
@@ -822,3 +726,5 @@ private fun CanvasStopSquareIcon(tint: Color, modifier: Modifier = Modifier) {
         )
     }
 }
+
+

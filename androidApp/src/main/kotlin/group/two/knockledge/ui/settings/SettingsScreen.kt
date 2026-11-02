@@ -2,6 +2,7 @@ package group.two.knockledge.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -40,6 +41,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -52,15 +54,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import android.app.Application
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -68,6 +75,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -91,6 +99,7 @@ import group.two.knockledge.ui.BackArrowNavIcon
 import group.two.knockledge.ui.auth.AuthState
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -113,6 +122,9 @@ import group.two.knockledge.ui.theme.TextInk
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** Maximum scale reduction applied to the account card as it is covered. */
+private const val ACCOUNT_CARD_MIN_SCALE_DELTA = 0.08f
+
 /**
  * Settings screen built according to the Knockledge Figma design.
  * Features M3 container components, obsidian & brass styling, and interactive controls including
@@ -126,6 +138,7 @@ import kotlinx.coroutines.launch
  * @param onKnockThresholdChanged Callback when knock sensitivity is modified.
  * @param onExecutionModeChanged Callback when AI execution mode is changed ("online", "local", "auto").
  * @param onRemoteSyncChanged Callback when remote database synchronization is toggled.
+ * @param onSyncNow Callback when manual synchronization is requested.
  * @param onSummaryModelChanged Callback when selected offline summary model is changed.
  * @param onDownloadModel Callback when downloading an offline model file.
  * @param onRemoveModel Callback when removing an installed offline model file.
@@ -137,6 +150,7 @@ import kotlinx.coroutines.launch
  * @param storageConsumptionMb Cached audio storage consumption in MB.
  * @param modifier Modifier for root container layout.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     settingsUiState: SettingsUiState,
@@ -149,6 +163,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     onExecutionModeChanged: (String) -> Unit = {},
     onRemoteSyncChanged: (Boolean) -> Unit = {},
+    onSyncNow: () -> Unit = {},
     onSummaryModelChanged: (String) -> Unit = {},
     onDownloadModel: (ModelFile) -> Unit = {},
     onRemoveModel: (ModelFile) -> Unit = {},
@@ -163,10 +178,28 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var accountCardHeightPx by remember { mutableStateOf(0) }
+
+    val density = LocalDensity.current
+    val collapseThresholdPx = with(density) { 56.dp.toPx() }
+    val collapseProgress = if (collapseThresholdPx > 0f) {
+        (scrollState.value.toFloat() / collapseThresholdPx).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+
+    LaunchedEffect(scrollState.isScrollInProgress) {
+        val height = accountCardHeightPx
+        val value = scrollState.value
+        if (!scrollState.isScrollInProgress && value in 1 until height) {
+            scrollState.animateScrollTo(if (value * 2 <= height) 0 else height)
+        }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .background(ObsidianMidnight),
     ) {
         // Ambient Glow Highlights
@@ -187,112 +220,161 @@ fun SettingsScreen(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState),
-        ) {
-            // Top Bar
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-            ) {
-                if (onNavigateToHome != null) {
-                    IconButton(
-                        onClick = onNavigateToHome,
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                val progress = FastOutSlowInEasing.transform(collapseProgress)
+                val topBarHeight = (96f - 40f * progress).dp
+                val horizontalBias = -1f + progress
+                val verticalBias = 1f - progress
+                val titleStartPadding = (16f * (1f - progress)).dp
+                val titleBottomPadding = (12f * (1f - progress)).dp
+                val titleScale = 1f - 0.28f * progress
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(topBarHeight)
+                        .padding(horizontal = 8.dp),
+                ) {
+                    // Back button row
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        contentAlignment = Alignment.CenterStart,
                     ) {
-                        BackArrowNavIcon(tint = ParchmentCream)
+                        if (onNavigateToHome != null) {
+                            IconButton(
+                                onClick = onNavigateToHome,
+                            ) {
+                                BackArrowNavIcon(tint = ParchmentCream)
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Collapsible Header Title
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = ParchmentCream,
+                        modifier = Modifier
+                            .align(BiasAlignment(horizontalBias, verticalBias))
+                            .padding(start = titleStartPadding, bottom = titleBottomPadding)
+                            .graphicsLayer {
+                                scaleX = titleScale
+                                scaleY = titleScale
+                                transformOrigin = TransformOrigin(
+                                    pivotFractionX = 0.5f * progress,
+                                    pivotFractionY = 0.5f,
+                                )
+                            },
+                    )
                 }
-
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = ParchmentCream,
-                )
-            }
-
-            // Cards Stack
+            },
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                ) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = SurfaceContainerHigh,
+                        contentColor = ParchmentCream,
+                        actionColor = AccentGold,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.border(1.dp, AntiqueBrass, RoundedCornerShape(4.dp)),
+                    )
+                }
+            },
+        ) { innerPadding ->
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(scrollState),
             ) {
-                // 1. Active Account & Sign Out Hero Card
-                ActiveAccountCard(
-                    authState = authState,
-                    remoteSyncEnabled = settingsUiState.remoteSyncEnabled,
-                    onRemoteSyncChanged = onRemoteSyncChanged,
-                    onSignOut = onSignOut,
-                )
-
-                // 2. Buffer Duration Card
-                BufferDurationCard(
-                    bufferDurationSeconds = settingsUiState.bufferDurationSeconds,
-                    onBufferDurationChanged = onBufferDurationChanged,
-                )
-
-                // 3. Storage Consumption Card
-                StorageConsumptionCard(
-                    storageConsumptionMb = storageConsumptionMb,
-                )
-
-                // 4. Automatic AI Processing Card
-                AutomaticAiCard(
-                    autoAiEnabled = autoAiEnabled,
-                    onAutoAiChanged = onAutoAiChanged,
-                )
-
-                // 5. AI Execution Mode Card with split transcription & summarization bottom sheets
-                AiExecutionModeCard(
-                    currentMode = settingsUiState.transcriptionMode,
-                    summaryModel = settingsUiState.summaryModel,
-                    onExecutionModeChanged = onExecutionModeChanged,
-                    onSummaryModelChanged = onSummaryModelChanged,
-                    onDownloadModel = onDownloadModel,
-                    onRemoveModel = onRemoveModel,
-                    installedModelIds = installedModelIds,
-                    downloadProgress = downloadProgress,
-                    downloadingModelId = downloadingModelId,
-                )
-
-                // 6. Gesture Sensitivity Card
-                GestureSensitivityCard(
-                    knockSensorThreshold = settingsUiState.knockSensorThreshold,
-                    onKnockThresholdChanged = onKnockThresholdChanged,
-                )
-
-                // 7. Gesture Test Card
-                GestureTestCard(
-                    isSessionRunning = isSessionRunning,
-                    onPurgeSession = onPurgeSession,
-                    onShowSnackbar = { msg ->
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(msg)
-                        }
-                    },
-                )
+                // Cards Stack
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    // 1. Active Account & Sign Out Hero Card
+                    Box(
+                        modifier = Modifier
+                            .onSizeChanged { accountCardHeightPx = it.height }
+                            .graphicsLayer {
+                                // Pin the card so later cards slide over it, fading and shrinking it as it is covered.
+                                val progress = if (accountCardHeightPx > 0) {
+                                    (scrollState.value.toFloat() / accountCardHeightPx).coerceIn(0f, 1f)
+                                } else {
+                                    0f
+                                }
+                                translationY = scrollState.value.toFloat()
+                                alpha = 1f - progress
+                                scaleX = 1f - progress * ACCOUNT_CARD_MIN_SCALE_DELTA
+                                scaleY = scaleX
+                            },
+                    ) {
+                        ActiveAccountCard(
+                            authState = authState,
+                            remoteSyncEnabled = settingsUiState.remoteSyncEnabled,
+                            onRemoteSyncChanged = onRemoteSyncChanged,
+                            onSyncNow = onSyncNow,
+                            onSignOut = onSignOut,
+                        )
+                    }
+    
+                    // 2. Buffer Duration Card
+                    BufferDurationCard(
+                        bufferDurationSeconds = settingsUiState.bufferDurationSeconds,
+                        onBufferDurationChanged = onBufferDurationChanged,
+                    )
+    
+                    // 3. Storage Consumption Card
+                    StorageConsumptionCard(
+                        storageConsumptionMb = storageConsumptionMb,
+                    )
+    
+                    // 4. Automatic AI Processing Card
+                    AutomaticAiCard(
+                        autoAiEnabled = autoAiEnabled,
+                        onAutoAiChanged = onAutoAiChanged,
+                    )
+    
+                    // 5. AI Execution Mode Card with split transcription & summarization bottom sheets
+                    AiExecutionModeCard(
+                        currentMode = settingsUiState.transcriptionMode,
+                        summaryModel = settingsUiState.summaryModel,
+                        onExecutionModeChanged = onExecutionModeChanged,
+                        onSummaryModelChanged = onSummaryModelChanged,
+                        onDownloadModel = onDownloadModel,
+                        onRemoveModel = onRemoveModel,
+                        installedModelIds = installedModelIds,
+                        downloadProgress = downloadProgress,
+                        downloadingModelId = downloadingModelId,
+                    )
+    
+                    // 6. Gesture Sensitivity Card
+                    GestureSensitivityCard(
+                        knockSensorThreshold = settingsUiState.knockSensorThreshold,
+                        onKnockThresholdChanged = onKnockThresholdChanged,
+                    )
+    
+                    // 7. Gesture Test Card
+                    GestureTestCard(
+                        isSessionRunning = isSessionRunning,
+                        onPurgeSession = onPurgeSession,
+                        onShowSnackbar = { msg ->
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(msg)
+                            }
+                        },
+                    )
+                }
             }
-        }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
-        ) { data ->
-            Snackbar(
-                snackbarData = data,
-                containerColor = SurfaceContainerHigh,
-                contentColor = ParchmentCream,
-                actionColor = AccentGold,
-                shape = RoundedCornerShape(4.dp),
-                modifier = Modifier.border(1.dp, AntiqueBrass, RoundedCornerShape(4.dp)),
-            )
         }
     }
 }
@@ -318,10 +400,19 @@ private fun BufferDurationCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val minutes = bufferDurationSeconds / 60
-            val text = if (minutes == 1) {
-                stringResource(R.string.settings_buffer_minute_kept, minutes)
+            val seconds = bufferDurationSeconds % 60
+            val text = if (seconds == 0) {
+                if (minutes == 1) {
+                    stringResource(R.string.settings_buffer_minute_kept, minutes)
+                } else {
+                    stringResource(R.string.settings_buffer_minutes_kept, minutes)
+                }
             } else {
-                stringResource(R.string.settings_buffer_minutes_kept, minutes)
+                if (minutes > 0) {
+                    "$minutes min $seconds sec kept"
+                } else {
+                    "$seconds sec kept"
+                }
             }
             Text(
                 text = text,
@@ -329,8 +420,13 @@ private fun BufferDurationCard(
                 color = ParchmentCream,
             )
 
+            val detailedText = if (seconds == 0) {
+                "${minutes}m 00s"
+            } else {
+                "${minutes}m ${seconds.toString().padStart(2, '0')}s"
+            }
             Text(
-                text = "1m  5m",
+                text = detailedText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MutedSand,
             )
@@ -1209,7 +1305,7 @@ private fun rememberNetworkImage(url: String?): ImageBitmap? {
 }
 
 /**
- * Hero card displaying active user account details, remote database sync toggle, and sign out action.
+ * Hero card displaying active user account details, remote database sync toggle, manual sync action, and sign out action.
  * Styled with a distinct deep burnished brass container (PrimaryContainer) and glowing gold accents to distinguish the profile section.
  */
 @Composable
@@ -1217,6 +1313,7 @@ private fun ActiveAccountCard(
     authState: AuthState,
     remoteSyncEnabled: Boolean,
     onRemoteSyncChanged: (Boolean) -> Unit,
+    onSyncNow: () -> Unit = {},
     onSignOut: () -> Unit,
 ) {
     Card(
@@ -1328,7 +1425,27 @@ private fun ActiveAccountCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            // Sync Now Action Button
+            Button(
+                onClick = onSyncNow,
+                enabled = remoteSyncEnabled,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(4.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AccentGold,
+                    contentColor = TextInk,
+                    disabledContainerColor = BurnishedBronze.copy(alpha = 0.4f),
+                    disabledContentColor = MutedSand.copy(alpha = 0.6f),
+                ),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_sync_now_btn),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
 
             // Sign Out Action Button
             OutlinedButton(

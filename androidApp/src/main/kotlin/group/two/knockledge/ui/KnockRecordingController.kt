@@ -13,6 +13,8 @@ data class KnockRecordingUiState(
     val isGestureActive: Boolean = false,
     val isSavingSnapshot: Boolean = false,
     val lastSaveSuccess: Boolean? = null,
+    /** True once the buffer holds at least the configured minimum audio for a save. */
+    val canCapture: Boolean = false,
     val level: Float = 0f,
     /** Live frequency band levels, 0..1 each, low to high frequency. Drives the waveform bars. */
     val bands: List<Float> = emptyList(),

@@ -153,7 +153,7 @@ fun AudioPlaybackScreen(
     initialTab: AudioPlaybackTab = AudioPlaybackTab.TRANSCRIPT,
 ) {
     LaunchedEffect(note.id) {
-        playbackViewModel.loadNote(note)
+        playbackViewModel.loadNote(note, autoPlay = false)
     }
 
     val playbackState by playbackViewModel.playbackState.collectAsState()

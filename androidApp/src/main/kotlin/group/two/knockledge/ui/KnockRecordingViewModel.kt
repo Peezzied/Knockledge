@@ -31,6 +31,7 @@ class KnockRecordingViewModel(
                 isGestureActive = rec.isGestureActive,
                 isSavingSnapshot = rec.pendingRewinds > 0,
                 lastSaveSuccess = saved,
+                canCapture = rec.canRewind,
                 level = rec.level,
                 bands = rec.bands,
             )

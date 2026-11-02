@@ -23,9 +23,12 @@ class AudioPlaybackViewModel @Inject constructor(
     /**
      * Initializes playback for the specified [note].
      */
-    fun loadNote(note: Note) {
+    fun loadNote(note: Note, autoPlay: Boolean = false) {
         if ((currentNote?.id == note.id) && (playbackState.value.durationMs > 0)) {
             currentNote = note
+            if (!autoPlay && playbackState.value.isPlaying) {
+                audioPlayer.pause()
+            }
             return
         }
         currentNote = note
@@ -41,6 +44,9 @@ class AudioPlaybackViewModel @Inject constructor(
             } ?: run {
                 audioPlayer.play(file, chapters)
             }
+        }
+        if (!autoPlay) {
+            audioPlayer.pause()
         }
     }
 

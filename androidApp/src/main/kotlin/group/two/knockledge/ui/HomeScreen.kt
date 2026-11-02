@@ -41,11 +41,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -63,14 +67,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -80,7 +87,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -937,59 +946,7 @@ fun CassettePlayKeyButton(
     }
 }
 
-/**
- * Custom Canvas composable that draws a pixelated retro ring contour matching Figma mockup styling.
- */
-@Composable
-fun PixelatedRing(
-    radius: androidx.compose.ui.unit.Dp,
-    pixelSize: androidx.compose.ui.unit.Dp,
-    color: Color,
-    modifier: Modifier = Modifier,
-    isDotted: Boolean = false,
-    dotCount: Int = 16,
-    waveProgress: Float = 0f,
-    isWaving: Boolean = false,
-    pullProgress: Float = 0f,
-) {
-    Canvas(modifier = modifier) {
-        val centerX = size.width / 2f
-        val centerY = size.height / 2f
-        val effectiveRadiusDp = radius * (1f - 0.75f * pullProgress)
-        val radiusPx = effectiveRadiusDp.toPx()
-        val stepPx = pixelSize.toPx()
-        val steps = if (isDotted) dotCount else (2 * Math.PI * radiusPx / stepPx).toInt().coerceAtLeast(32)
-        val alphaMultiplier = 1f - 0.4f * pullProgress
 
-        for (i in 0 until steps) {
-            val angle = (2 * Math.PI * i / steps).toFloat()
-            val rawX = radiusPx * kotlin.math.cos(angle)
-            val rawY = radiusPx * kotlin.math.sin(angle)
-            val snappedX = (rawX / stepPx).toInt() * stepPx
-            val snappedY = (rawY / stepPx).toInt() * stepPx
-
-            val dotScale = if (isWaving) {
-                val baseRadiusPx = radius.toPx().coerceAtLeast(1f)
-                val normalizedDiag = (snappedX + snappedY) / (1.414f * baseRadiusPx)
-                val wavePhase = (2 * Math.PI * (waveProgress - normalizedDiag * 0.5f)).toFloat()
-                (1f + 0.25f * kotlin.math.sin(wavePhase)) * (1f - 0.3f * pullProgress)
-            } else {
-                1f - 0.3f * pullProgress
-            }
-
-            val currentDotSize = stepPx * dotScale
-
-            drawRect(
-                color = color.copy(alpha = color.alpha * alphaMultiplier),
-                topLeft = Offset(
-                    centerX + snappedX - currentDotSize / 2f,
-                    centerY + snappedY - currentDotSize / 2f,
-                ),
-                size = Size(currentDotSize, currentDotSize),
-            )
-        }
-    }
-}
 
 /**
  * Floating Recording Button reproducing the RecordTab circle button verbatim with a diagonal wave dot animation
@@ -999,6 +956,7 @@ fun PixelatedRing(
 fun RecordFloatingActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isRecording: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val pullProgress = remember { Animatable(0f) }
@@ -1023,6 +981,16 @@ fun RecordFloatingActionButton(
             repeatMode = RepeatMode.Reverse,
         ),
         label = "glowAlpha",
+    )
+
+    val reelRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "reelRotation",
     )
 
     Box(
@@ -1056,7 +1024,7 @@ fun RecordFloatingActionButton(
                             pullProgress.animateTo(
                                 targetValue = 1f,
                                 animationSpec = tween(
-                                    durationMillis = 220,
+                                    durationMillis = 280,
                                     easing = FastOutLinearInEasing,
                                 ),
                             )
@@ -1066,7 +1034,8 @@ fun RecordFloatingActionButton(
                     }
                 }
             },
-            modifier = Modifier.size(88.dp),
+            modifier = Modifier
+                .size(88.dp),
             shape = CircleShape,
             color = ObsidianMidnight,
             shadowElevation = 12.dp,
@@ -1080,8 +1049,7 @@ fun RecordFloatingActionButton(
                     pixelSize = 3.dp,
                     color = AccentGold.copy(alpha = 0.85f),
                     modifier = Modifier.size(76.dp),
-                    isDotted = true,
-                    dotCount = 16,
+                    isDotted = false,
                     waveProgress = waveProgress,
                     isWaving = true,
                     pullProgress = pullProgress.value,
@@ -1091,18 +1059,18 @@ fun RecordFloatingActionButton(
                     pixelSize = 3.dp,
                     color = AccentGold.copy(alpha = 0.55f),
                     modifier = Modifier.size(60.dp),
-                    isDotted = true,
-                    dotCount = 12,
+                    isDotted = false,
                     waveProgress = waveProgress,
                     isWaving = true,
                     pullProgress = pullProgress.value,
                 )
-                Box(
+                CassetteReelHub(
+                    color = ParchmentCream,
+                    shadowColor = ObsidianMidnight,
+                    rotationAngle = if (isRecording) reelRotation else 0f,
                     modifier = Modifier
-                        .width(12.dp)
-                        .height(22.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(ParchmentCream),
+                        .size(44.dp)
+                        .scale(1f - 0.25f * pullProgress.value),
                 )
             }
         }
@@ -1124,22 +1092,60 @@ fun HomeScreen(
     onManualSave: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    isRecording: Boolean = false,
     onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
     onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
 ) {
+    val lazyListState = rememberLazyListState()
+    val density = LocalDensity.current
+    val collapseThresholdPx = with(density) { 56.dp.toPx() }
+
+    val collapseProgress by remember {
+        derivedStateOf {
+            if (lazyListState.firstVisibleItemIndex > 0) {
+                1f
+            } else if (collapseThresholdPx > 0f) {
+                (lazyListState.firstVisibleItemScrollOffset.toFloat() / collapseThresholdPx).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+        }
+    }
+
+    LaunchedEffect(lazyListState.isScrollInProgress) {
+        if (!lazyListState.isScrollInProgress && lazyListState.firstVisibleItemIndex == 0) {
+            val offset = lazyListState.firstVisibleItemScrollOffset
+            val threshold = collapseThresholdPx.toInt()
+            if (offset in 1 until threshold) {
+                lazyListState.animateScrollToItem(0, if (offset * 2 <= threshold) 0 else threshold)
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            Column(
+            val progress = FastOutSlowInEasing.transform(collapseProgress)
+            val topBarHeight = (96f - 40f * progress).dp
+            val horizontalBias = -1f + progress
+            val verticalBias = 1f - progress
+            val titleStartPadding = (16f * (1f - progress)).dp
+            val titleBottomPadding = (12f * (1f - progress)).dp
+            val titleScale = 1f - 0.28f * progress
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                    .statusBarsPadding()
+                    .height(topBarHeight)
+                    .padding(horizontal = 8.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
+                // Settings Gear Icon Row
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    contentAlignment = Alignment.CenterEnd,
                 ) {
                     IconButton(
                         onClick = onNavigateToSettings,
@@ -1151,13 +1157,25 @@ fun HomeScreen(
                         )
                     }
                 }
+
+                // Collapsible Header Title
                 Text(
                     text = "Recordings",
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
                     ),
                     color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .align(BiasAlignment(horizontalBias, verticalBias))
+                        .padding(start = titleStartPadding, bottom = titleBottomPadding)
+                        .graphicsLayer {
+                            scaleX = titleScale
+                            scaleY = titleScale
+                            transformOrigin = TransformOrigin(
+                                pivotFractionX = 0.5f * progress,
+                                pivotFractionY = 0.5f,
+                            )
+                        },
                 )
             }
         },
@@ -1165,6 +1183,7 @@ fun HomeScreen(
         floatingActionButton = {
             RecordFloatingActionButton(
                 onClick = onManualSave,
+                isRecording = isRecording,
             )
         },
     ) { innerPadding ->
@@ -1176,6 +1195,7 @@ fun HomeScreen(
             onSelectNote = onSelectNote,
             onTogglePlayPause = onTogglePlayPause,
             onProcessNote = onProcessNote,
+            lazyListState = lazyListState,
             onTogglePlayNote = onTogglePlayNote,
             onSeekToPosition = onSeekToPosition,
             modifier = Modifier.padding(innerPadding),
@@ -1196,6 +1216,7 @@ fun HomeRecordingsContent(
     onTogglePlayPause: () -> Unit,
     onProcessNote: (String) -> Unit,
     modifier: Modifier = Modifier,
+    lazyListState: LazyListState = rememberLazyListState(),
     onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
     onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
 ) {
@@ -1212,99 +1233,110 @@ fun HomeRecordingsContent(
     Box(
         modifier = modifier.fillMaxSize(),
     ) {
-        Column(
+        LazyColumn(
+            state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(bottom = 120.dp),
         ) {
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = {
-                    Text(
-                        text = "Search all recordings",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    )
-                },
-                leadingIcon = {
-                    SearchLensIcon(tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            ClearCrossIcon(tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            item(key = "search_bar") {
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            text = "Search all recordings",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                    },
+                    leadingIcon = {
+                        SearchLensIcon(tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                ClearCrossIcon(tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-            )
-
-            // Note List or Empty State
-            if (filteredNotes.isEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
                     ),
-                ) {
-                    Text(
-                        text = stringResource(R.string.no_notes_found),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    contentPadding = PaddingValues(bottom = 120.dp),
-                ) {
-                    items(
-                        items = filteredNotes,
-                        key = { it.id },
-                    ) { note ->
-                        val isSelected = selectedNote?.id == note.id
-                        val isPlayingThisNote = isSelected && playbackState.isPlaying
-                        val isProcessingThisNote = processingUiState.isProcessing && processingUiState.noteId == note.id
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
-                        NoteListItem(
-                            note = note,
-                            isPlayingThisNote = isPlayingThisNote,
-                            playbackState = playbackState,
-                            isProcessingThisNote = isProcessingThisNote,
-                            processingStage = if (isProcessingThisNote) processingUiState.stage else null,
-                            onSelectNote = { selected ->
-                                onSelectNote(selected)
-                            },
-                            onTogglePlayNote = { selected ->
-                                onTogglePlayNote(selected)
-                            },
-                            onSeekToPosition = { posMs ->
-                                onSeekToPosition(note, posMs)
-                            },
+            if (filteredNotes.isEmpty()) {
+                item(key = "empty_notes") {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        ),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.no_notes_found),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
                         )
                     }
                 }
+            } else {
+                items(
+                    items = filteredNotes,
+                    key = { it.id },
+                ) { note ->
+                    val isSelected = selectedNote?.id == note.id
+                    val isPlayingThisNote = isSelected && playbackState.isPlaying
+                    val isProcessingThisNote = processingUiState.isProcessing && processingUiState.noteId == note.id
+
+                    NoteListItem(
+                        note = note,
+                        isPlayingThisNote = isPlayingThisNote,
+                        playbackState = playbackState,
+                        isProcessingThisNote = isProcessingThisNote,
+                        processingStage = if (isProcessingThisNote) processingUiState.stage else null,
+                        onSelectNote = { selected ->
+                            onSelectNote(selected)
+                        },
+                        onTogglePlayNote = { selected ->
+                            onTogglePlayNote(selected)
+                        },
+                        onSeekToPosition = { posMs ->
+                            onSeekToPosition(note, posMs)
+                        },
+                    )
+                }
             }
         }
+
+        // Bottom Vignette Gradient for FAB visual contrast
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(130.dp)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            ObsidianMidnight.copy(alpha = 0.7f),
+                            ObsidianMidnight
+                        )
+                    )
+                )
+        )
     }
 }
 
@@ -1318,6 +1350,7 @@ fun LiveTestAppShell(
     onRequestPermission: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val graph = remember(component) { component.graph() }
     val dataGraph = remember(component) { component.data() }
     val appSettings = remember(component) { component.appSettings() }
@@ -1462,6 +1495,7 @@ fun LiveTestAppShell(
                         onNavigateToSettings = {
                             navController.navigate("settings")
                         },
+                        isRecording = recordingUiState.isRecording,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -1550,6 +1584,12 @@ fun LiveTestAppShell(
                             onNavigateToHome = { navController.popBackStack() },
                             autoAiEnabled = autoAiEnabled,
                             onAutoAiChanged = settingsViewModel::setAutoAiEnabled,
+                            notes = notes,
+                            onSelectNote = { note ->
+                                selectedNoteId = note.id
+                                playbackViewModel.loadNote(note, autoPlay = false)
+                                navController.navigate("playback/${note.id}")
+                            },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -1601,6 +1641,13 @@ fun LiveTestAppShell(
                                 settingsViewModel.setComprehensionMode(mode)
                             },
                             onRemoteSyncChanged = settingsViewModel::setRemoteSyncEnabled,
+                            onSyncNow = {
+                                authState.user?.uid?.let { uid ->
+                                    coroutineScope.launch {
+                                        dataGraph.notes.syncPending(uid)
+                                    }
+                                }
+                            },
                             onSummaryModelChanged = { id ->
                                 modelManagementViewModel.selectSummaryModel(id)
                                 settingsViewModel.setSummaryModel(id)
