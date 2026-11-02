@@ -12,8 +12,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import group.two.knockledge.sensor.AndroidKnockGestureDetector
-import group.two.knockledge.sensor.KnockGestureDetector
 import group.two.knockledge.ui.LiveTestAppShell
 import group.two.knockledge.ui.theme.KnockledgeTheme
 
@@ -23,7 +21,6 @@ import group.two.knockledge.ui.theme.KnockledgeTheme
  * [Manifest.permission.POST_NOTIFICATIONS] permissions.
  */
 class MainActivity : ComponentActivity() {
-    private var knockDetector: KnockGestureDetector? = null
     private var hasRecordAudioPermission by mutableStateOf(false)
 
     private val requestPermissionsLauncher = registerForActivityResult(
@@ -61,12 +58,6 @@ class MainActivity : ComponentActivity() {
 
         requestMissingPermissions()
 
-        val detector = AndroidKnockGestureDetector(application)
-        knockDetector = detector
-        detector.startListening {
-            android.util.Log.i("KnockTest", "KNOCK DETECTED LIVE")
-        }
-
         setContent {
             KnockledgeTheme {
                 val app = application as KnockledgeApplication
@@ -78,10 +69,5 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        knockDetector?.stopListening()
-        knockDetector = null
-    }
 }
+
