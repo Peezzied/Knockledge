@@ -178,22 +178,24 @@ class KnockledgeController(
     fun toggle() = if (state.value.isRunning) stop() else start()
 
     /**
-     * Captures the last (up to) 5 minutes right now and summarizes it. Windows overlap:
-     * nothing is cut, so two rewinds a minute apart share four minutes of audio.
-     * Snapshots are taken instantly; summaries run one at a time so only one model is
-     * ever loaded. Ignored until 3 minutes (or the whole window, if shorter) are cached.
+     * Saves the audio recorded since the previous rewind (up to the 5-minute window)
+     * and summarizes it, so consecutive rewinds never overlap. Snapshots are taken
+     * instantly; summaries run one at a time so only one model is ever loaded.
+     * Ignored until the configured minimum (or the whole window, if shorter) is cached.
      */
     fun rewind(trigger: TriggerType = TriggerType.GESTURE) {
         if (!state.value.canRewind) return
         pendingRewinds.update { it + 1 }
         scope.launch {
             var wav: File? = null
+            var endedAt = 0L
+            var durationMillis = 0L
             try {
                 wav = capturer.snapshot()
                 _savedClipCount.update { it + 1 }
                 val pcm = readPcm(wav)
-                val endedAt = nowMillis()
-                val durationMillis = pcm.size * 1000L / RewindPolicy.SAMPLE_RATE
+                endedAt = nowMillis()
+                durationMillis = pcm.size * 1000L / RewindPolicy.SAMPLE_RATE
 
                 if (!autoAiProcessingEnabled.value) {
                     runCatching { noteSink?.recordAudioOnly(wav, endedAt - durationMillis, endedAt, trigger) }
@@ -224,6 +226,11 @@ class KnockledgeController(
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
+                wav?.let { w ->
+                    if (durationMillis > 0L) {
+                        runCatching { noteSink?.recordAudioOnly(w, endedAt - durationMillis, endedAt, trigger) }
+                    }
+                }
                 reportError(t.message ?: "Could not summarize that rewind.")
             } finally {
                 wav?.delete()

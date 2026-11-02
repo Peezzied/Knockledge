@@ -10,10 +10,10 @@ interface LocalAudioRingBuffer {
     /** Retargets the window to [seconds]; audio that no longer fits is dropped at once. */
     fun setWindowSeconds(seconds: Int)
 
-    /** Audio currently available to rewind, in milliseconds. */
+    /** Buffered audio not yet saved by a snapshot, in milliseconds. */
     fun bufferedMillis(): Long
 
-    /** Returns a WAV file of the buffered audio in recording order. */
+    /** Returns the audio recorded since the previous snapshot as a WAV file, then marks it saved. */
     fun snapshot(): File
 
     /** Drops all buffered audio. */

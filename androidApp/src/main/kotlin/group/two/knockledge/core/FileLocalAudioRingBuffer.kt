@@ -23,6 +23,8 @@ class FileLocalAudioRingBuffer(
     private var active: FileOutputStream? = null
     private var activeSamples = 0
     private var nextIndex = 0L
+    private var totalWritten = 0L
+    private var cutSamples = 0L
 
     init {
         wipeDir()
@@ -40,6 +42,7 @@ class FileLocalAudioRingBuffer(
             activeSamples += n
             offset += n
         }
+        totalWritten += length
     }
 
     /** Resizes the window, clamping it to the policy range and deleting the chunks that no longer fit. */
@@ -48,20 +51,28 @@ class FileLocalAudioRingBuffer(
         prune()
     }
 
-    /** Audio held on disk: the closed chunks plus the samples already in the active one. */
+    /** Audio recorded since the last snapshot, clamped to what is still on disk. */
     override fun bufferedMillis(): Long {
         if (files.isEmpty()) return 0L
-        return ((files.size - 1).toLong() * chunkSamples + activeSamples) * 1000L / sampleRate
+        return (totalWritten - maxOf(cutSamples, firstChunkStart())) * 1000L / sampleRate
     }
 
-    /** Concatenates the chunks in recording order into a new 16 kHz mono WAV; the buffer keeps recording. */
+    /** Writes the audio recorded since the previous snapshot into a new 16 kHz mono WAV, then marks it saved. */
     override fun snapshot(): File {
         val out = File(dir, "snapshot_${System.nanoTime()}.wav")
-        val dataBytes = files.sumOf { it.length() }
+        val start = maxOf(cutSamples, firstChunkStart())
+        var skipBytes = (start - firstChunkStart()) * 2
+        val dataBytes = (totalWritten - start) * 2
         out.outputStream().buffered().use { o ->
             o.write(wavHeader(dataBytes.toInt()))
-            files.forEach { f -> f.inputStream().use { it.copyTo(o) } }
+            files.forEach { f ->
+                f.inputStream().use { ins ->
+                    skipBytes -= ins.skipFully(skipBytes)
+                    ins.copyTo(o)
+                }
+            }
         }
+        cutSamples = totalWritten
         return out
     }
 
@@ -71,8 +82,15 @@ class FileLocalAudioRingBuffer(
         active = null
         files.clear()
         activeSamples = 0
+        nextIndex = 0L
+        totalWritten = 0L
+        cutSamples = 0L
         wipeDir()
     }
+
+    /** Absolute sample position of the first byte of the oldest remaining chunk. */
+    private fun firstChunkStart(): Long =
+        if (files.isEmpty()) totalWritten else (nextIndex - files.size) * chunkSamples
 
     private fun roll() {
         active?.close()
@@ -94,6 +112,18 @@ class FileLocalAudioRingBuffer(
 
     private fun chunksFor(seconds: Int) =
         (RewindPolicy.clampWindowSeconds(seconds) + RewindPolicy.CHUNK_SECONDS - 1) / RewindPolicy.CHUNK_SECONDS
+
+    /** Discards up to [bytes] by reading; FileInputStream.skip() may jump past EOF and overspend the budget. */
+    private fun java.io.InputStream.skipFully(bytes: Long): Long {
+        var left = bytes
+        val scratch = ByteArray(8 * 1024)
+        while (left > 0) {
+            val n = read(scratch, 0, minOf(scratch.size.toLong(), left).toInt())
+            if (n < 0) break
+            left -= n
+        }
+        return bytes - left
+    }
 
     private fun wavHeader(dataBytes: Int): ByteArray =
         ByteBuffer.allocate(WAV_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN).apply {

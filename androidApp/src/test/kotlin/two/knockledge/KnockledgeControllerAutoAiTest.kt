@@ -12,6 +12,7 @@ import group.two.knockledge.pipeline.PlaceholderSummarizer
 import group.two.knockledge.pipeline.PlaceholderTranscriber
 import group.two.knockledge.pipeline.RewindPipeline
 import group.two.knockledge.pipeline.Summary
+import group.two.knockledge.pipeline.Transcriber
 import group.two.knockledge.pipeline.TranscriptResult
 import group.two.knockledge.sensor.KnockGestureDetector
 import group.two.knockledge.settings.AppSettings
@@ -66,6 +67,11 @@ class KnockledgeControllerAutoAiTest {
     private class NoOpHooks : SessionHooks {
         override fun onSessionStarted() = Unit
         override fun onSessionStopped() = Unit
+    }
+
+    private class ThrowingTranscriber : Transcriber {
+        override suspend fun transcribe(pcm: ShortArray, sampleRate: Int): TranscriptResult =
+            throw RuntimeException("model exploded")
     }
 
     private class FakeDetector : KnockGestureDetector {
@@ -143,6 +149,74 @@ class KnockledgeControllerAutoAiTest {
         assertEquals(0, sink.recordedAudioOnlyCount)
         assertEquals(1, sink.recordedFullCount)
         assertEquals(TriggerType.MANUAL, sink.lastTrigger)
+    }
+
+    @Test
+    fun rewindSavesAudioOnlyWhenPipelineThrows() = runBlocking {
+        val sink = RecordingNoteSink()
+        val settings = AppSettings(MemoryStore(), "qwen2b")
+        settings.setAutoAiProcessingEnabled(true)
+
+        val ringBuffer = FileLocalAudioRingBuffer(tempDir, 60, 16_000)
+        ringBuffer.write(ShortArray(160_000) { 2_000 })
+
+        val controller = KnockledgeController(
+            capturer = RingAudioCapturer(NoOpAudioSource(), ringBuffer),
+            knockDetector = FakeDetector(),
+            hooks = NoOpHooks(),
+            pipeline = RewindPipeline(
+                transcriber = ThrowingTranscriber(),
+                summarizer = PlaceholderSummarizer(),
+                preprocessor = DefaultAudioPreprocessor(),
+            ),
+            recents = InMemoryRecentsRepository(),
+            noteSink = sink,
+            autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
+        )
+
+        controller.start()
+        withTimeout(5_000) { while (!controller.state.value.canRewind) delay(10) }
+        controller.rewind(TriggerType.GESTURE)
+        withTimeout(5_000) {
+            while (controller.state.value.error == null && sink.recordedAudioOnlyCount == 0) delay(10)
+        }
+
+        assertEquals(1, sink.recordedAudioOnlyCount)
+        assertEquals(0, sink.recordedFullCount)
+    }
+
+    @Test
+    fun rewindDoesNotSaveAudioOnlyOnInsufficientSpeech() = runBlocking {
+        val sink = RecordingNoteSink()
+        val settings = AppSettings(MemoryStore(), "qwen2b")
+        settings.setAutoAiProcessingEnabled(true)
+
+        val ringBuffer = FileLocalAudioRingBuffer(tempDir, 60, 16_000)
+        ringBuffer.write(ShortArray(160_000))
+
+        val controller = KnockledgeController(
+            capturer = RingAudioCapturer(NoOpAudioSource(), ringBuffer),
+            knockDetector = FakeDetector(),
+            hooks = NoOpHooks(),
+            pipeline = RewindPipeline(
+                transcriber = ThrowingTranscriber(),
+                summarizer = PlaceholderSummarizer(),
+                preprocessor = DefaultAudioPreprocessor(),
+            ),
+            recents = InMemoryRecentsRepository(),
+            noteSink = sink,
+            autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
+        )
+
+        controller.start()
+        withTimeout(5_000) { while (!controller.state.value.canRewind) delay(10) }
+        controller.rewind(TriggerType.GESTURE)
+        withTimeout(5_000) {
+            while (controller.state.value.error == null && sink.recordedAudioOnlyCount == 0) delay(10)
+        }
+
+        assertEquals(0, sink.recordedAudioOnlyCount)
+        assertEquals(0, sink.recordedFullCount)
     }
 
     @Test
