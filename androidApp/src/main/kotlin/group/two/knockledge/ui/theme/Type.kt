@@ -8,48 +8,48 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import group.two.knockledge.R
 
-val KiwiSoda = FontFamily(Font(R.font.kiwi_soda, FontWeight.Normal))
+val OneSize = FontFamily(Font(R.font.onesize, FontWeight.Normal))
 val VcrOsdMono = FontFamily(Font(R.font.vcr_osd_mono, FontWeight.Normal))
 
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 32.sp,
         lineHeight = 40.sp,
     ),
     headlineLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 32.sp,
         lineHeight = 40.sp,
     ),
     headlineMedium = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 24.sp,
         lineHeight = 32.sp,
     ),
     titleLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 18.sp,
         lineHeight = 24.sp,
     ),
     titleMedium = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 18.sp,
         lineHeight = 24.sp,
     ),
     titleSmall = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 20.sp,
     ),
     labelLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,

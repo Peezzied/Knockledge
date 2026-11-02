@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knockledge Note Item Play Button Variants</title>
+  <style>
+    :root {
+      --color-primary: #b8913f;
+      --color-primary-glow: #d4af5a;
+      --color-text-ink: #1b1833;
+      --color-parchment: #f2e8d0;
+      --color-surface-obsidian: #14122b;
+      --color-surface-indigo: #1e1b3a;
+      --color-surface-high: #252146;
+      --color-waveform-teal: #2de2d0;
+      --color-text-muted: #b9b09a;
+      --font-display: 'OneSize', sans-serif, system-ui;
+      --font-telemetry: 'VCR OSD Mono', monospace, Courier;
+    }
+
+    body {
+      background-color: var(--color-surface-obsidian);
+      color: var(--color-parchment);
+      font-family: var(--font-telemetry);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      color: var(--color-primary-glow);
+      margin: 0 0 16px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .note-card {
+      background-color: var(--color-parchment);
+      color: var(--color-text-ink);
+      border-radius: 4px;
+      padding: 16px;
+      border: 1px solid var(--color-primary);
+      box-shadow: 0px 2px 8px rgba(212, 175, 90, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .note-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .note-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: bold;
+      color: var(--color-text-ink);
+    }
+
+    .note-meta {
+      font-size: 12px;
+      color: #524b6b;
+    }
+
+    /* VARIANT 1: Tactical Brass Trigger */
+    .play-btn-v1 {
+      min-width: 48px;
+      height: 48px;
+      background-color: var(--color-primary);
+      color: var(--color-text-ink);
+      border: 1px solid var(--color-text-ink);
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease-out;
+      box-shadow: 0px 2px 0px rgba(27, 24, 51, 0.4);
+    }
+
+    .play-btn-v1:hover {
+      background-color: var(--color-primary-glow);
+      box-shadow: 0px 0px 12px rgba(212, 175, 90, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .play-btn-v1:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+
+    .play-btn-v1 svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--color-text-ink);
+    }
+
+    /* VARIANT 2: CRT Telemetry Split Button */
+    .play-btn-v2 {
+      height: 48px;
+      background-color: var(--color-surface-indigo);
+      border: 1px solid var(--color-primary);
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .play-btn-v2:hover {
+      border-color: var(--color-primary-glow);
+      box-shadow: 0 0 8px rgba(212, 175, 90, 0.3);
+    }
+
+    .play-btn-v2 .telemetry {
+      padding: 0 12px;
+      font-size: 12px;
+      color: var(--color-parchment);
+      letter-spacing: 0.05em;
+    }
+
+    .play-btn-v2 .badge {
+      width: 48px;
+      height: 48px;
+      background-color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .play-btn-v2 .badge svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--color-text-ink);
+    }
+
+    /* VARIANT 3: Debossed Parchment Stamp */
+    .play-btn-v3 {
+      width: 48px;
+      height: 48px;
+      background-color: var(--color-text-ink);
+      border: 1px solid var(--color-primary);
+      border-radius: 2px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.6);
+    }
+
+    .play-btn-v3:hover {
+      border-color: var(--color-waveform-teal);
+      box-shadow: inset 0px 1px 2px rgba(0, 0, 0, 0.8), 0 0 10px rgba(45, 226, 208, 0.3);
+    }
+
+    .play-btn-v3 svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--color-primary-glow);
+      transition: fill 0.15s ease;
+    }
+
+    .play-btn-v3:hover svg {
+      fill: var(--color-waveform-teal);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Knockledge Play Buttons</h1>
+
+  <!-- Variant 1 Item -->
+  <div class="note-card">
+    <div class="note-info">
+      <div class="note-title">1. Tactical Brass Trigger</div>
+      <div class="note-meta">02:14 • 14:32:05</div>
+    </div>
+    <button class="play-btn-v1" aria-label="Play Note 1">
+      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+  </div>
+
+  <!-- Variant 2 Item -->
+  <div class="note-card">
+    <div class="note-info">
+      <div class="note-title">2. CRT Telemetry Split</div>
+      <div class="note-meta">00:45 • 14:35:10</div>
+    </div>
+    <button class="play-btn-v2" aria-label="Play Note 2">
+      <span class="telemetry">0:45</span>
+      <span class="badge">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </span>
+    </button>
+  </div>
+
+  <!-- Variant 3 Item -->
+  <div class="note-card">
+    <div class="note-info">
+      <div class="note-title">3. Debossed Stamp</div>
+      <div class="note-meta">01:08 • 14:38:22</div>
+    </div>
+    <button class="play-btn-v3" aria-label="Play Note 3">
+      <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+  </div>
+
+</body>
+</html>

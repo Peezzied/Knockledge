@@ -1,14 +1,18 @@
 package group.two.knockledge.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,6 +23,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -93,6 +102,7 @@ import group.two.knockledge.ui.settings.ModelManagementViewModel
 import group.two.knockledge.ui.settings.SettingsScreen
 import group.two.knockledge.ui.settings.SettingsViewModel
 import group.two.knockledge.ui.theme.AccentGold
+import group.two.knockledge.ui.theme.ErrorRed
 import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.BurnishedBronze
 import group.two.knockledge.ui.theme.BurnishedBronzeBtn
@@ -103,6 +113,9 @@ import group.two.knockledge.ui.theme.OutlineVariant
 import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.WaveformTeal
 import kotlinx.coroutines.launch
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -250,53 +263,7 @@ fun PauseBarsIcon(
     }
 }
 
-@Composable
-fun TrashBinIcon(
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    Canvas(modifier = modifier.size(20.dp)) {
-        val stroke = 1.75.dp.toPx()
-        val w = size.width
-        val h = size.height
 
-        drawLine(
-            color = tint,
-            start = Offset(w * 0.2f, h * 0.28f),
-            end = Offset(w * 0.8f, h * 0.28f),
-            strokeWidth = stroke,
-            cap = StrokeCap.Round,
-        )
-        drawArc(
-            color = tint,
-            startAngle = 180f,
-            sweepAngle = 180f,
-            useCenter = false,
-            topLeft = Offset(w * 0.38f, h * 0.16f),
-            size = Size(w * 0.24f, h * 0.22f),
-            style = Stroke(width = stroke),
-        )
-        drawRoundRect(
-            color = tint,
-            topLeft = Offset(w * 0.26f, h * 0.32f),
-            size = Size(w * 0.48f, h * 0.52f),
-            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
-            style = Stroke(width = stroke),
-        )
-        drawLine(
-            color = tint,
-            start = Offset(w * 0.41f, h * 0.42f),
-            end = Offset(w * 0.41f, h * 0.72f),
-            strokeWidth = stroke,
-        )
-        drawLine(
-            color = tint,
-            start = Offset(w * 0.59f, h * 0.42f),
-            end = Offset(w * 0.59f, h * 0.72f),
-            strokeWidth = stroke,
-        )
-    }
-}
 
 @Composable
 fun BackArrowNavIcon(
@@ -339,16 +306,69 @@ private fun rememberFormattedDateTitle(epochMs: Long): String {
     return formatter.format(Date(epochMs))
 }
 
+private fun generateFallbackWaveform(numBars: Int, seed: Long): List<Float> {
+    return List(numBars) { i ->
+        val progress = i.toFloat() / (numBars - 1).coerceAtLeast(1)
+        val baseEnvelope = 0.3f + 0.65f * kotlin.math.sin(progress * Math.PI.toFloat()).coerceIn(0f, 1f)
+        val subHarmonic = 0.2f * kotlin.math.cos((progress * 5 + seed % 7) * Math.PI.toFloat())
+        (baseEnvelope + subHarmonic).coerceIn(0.18f, 1f)
+    }
+}
+
+private fun extractWaveformHeights(audioPath: String?, seed: Long): List<Float> {
+    val numBars = 64
+    if (audioPath.isNullOrBlank()) {
+        return generateFallbackWaveform(numBars, seed)
+    }
+    return try {
+        val file = File(audioPath)
+        if (!file.exists()) return generateFallbackWaveform(numBars, seed)
+        val bytes = file.readBytes()
+        val headerOffset = 44
+        if (bytes.size <= headerOffset) return generateFallbackWaveform(numBars, seed)
+        val numShorts = (bytes.size - headerOffset) / 2
+        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        buffer.position(headerOffset)
+
+        val shorts = ShortArray(numShorts)
+        for (i in 0 until numShorts) {
+            shorts[i] = buffer.short
+        }
+
+        if (shorts.isEmpty()) return generateFallbackWaveform(numBars, seed)
+
+        val samplesPerBar = (shorts.size / numBars).coerceAtLeast(1)
+        List(numBars) { barIdx ->
+            val start = (barIdx * samplesPerBar).coerceIn(0, shorts.size - 1)
+            val end = ((barIdx + 1) * samplesPerBar).coerceIn(start + 1, shorts.size)
+            var maxVal = 0f
+            for (s in start until end) {
+                val absVal = kotlin.math.abs(shorts[s].toFloat())
+                if (absVal > maxVal) maxVal = absVal
+            }
+            val normalized = (maxVal / 32768f).coerceIn(0f, 1f)
+            (0.18f + normalized * 0.82f).coerceIn(0.18f, 1f)
+        }
+    } catch (_: Exception) {
+        generateFallbackWaveform(numBars, seed)
+    }
+}
+
 /**
  * Renders an audio frequency waveform with vertical bars expanding horizontally
  * across the entire available width. When playing, the bars animate in a wave motion.
+ * Tapping or dragging on the visualizer triggers [onSeekProgress] with progress from 0f to 1f.
  */
 @Composable
 fun WaveformBarVisualizer(
     modifier: Modifier = Modifier,
     barColor: Color = AccentGold,
+    scrubberColor: Color = ErrorRed,
     isPlaying: Boolean = false,
     seed: Long = 0L,
+    audioPath: String? = null,
+    playbackProgress: Float = 0f,
+    onSeekProgress: ((Float) -> Unit)? = null,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "waveformMotion")
     val wavePhase by infiniteTransition.animateFloat(
@@ -361,7 +381,42 @@ fun WaveformBarVisualizer(
         label = "wavePhase",
     )
 
-    Canvas(modifier = modifier) {
+    val waveHeights = remember(audioPath, seed) {
+        extractWaveformHeights(audioPath, seed)
+    }
+
+    val interactiveModifier = if (onSeekProgress != null) {
+        modifier
+            .pointerInput(onSeekProgress) {
+                detectTapGestures { offset ->
+                    if (size.width > 0) {
+                        val progress = (offset.x / size.width).coerceIn(0f, 1f)
+                        onSeekProgress(progress)
+                    }
+                }
+            }
+            .pointerInput(onSeekProgress) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        if (size.width > 0) {
+                            val progress = (offset.x / size.width).coerceIn(0f, 1f)
+                            onSeekProgress(progress)
+                        }
+                    },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        if (size.width > 0) {
+                            val progress = (change.position.x / size.width).coerceIn(0f, 1f)
+                            onSeekProgress(progress)
+                        }
+                    },
+                )
+            }
+    } else {
+        modifier
+    }
+
+    Canvas(modifier = interactiveModifier) {
         val w = size.width
         val h = size.height
         val barWidth = 3.dp.toPx()
@@ -371,9 +426,8 @@ fun WaveformBarVisualizer(
 
         for (i in 0 until numBars) {
             val progress = i.toFloat() / (numBars - 1).coerceAtLeast(1)
-            val baseEnvelope = 0.3f + 0.65f * kotlin.math.sin(progress * Math.PI.toFloat()).coerceIn(0f, 1f)
-            val subHarmonic = 0.2f * kotlin.math.cos(progress * 5 * Math.PI.toFloat())
-            val staticHeightFactor = (baseEnvelope + subHarmonic).coerceIn(0.18f, 1f)
+            val sampleIdx = (progress * (waveHeights.size - 1)).toInt().coerceIn(0, waveHeights.size - 1)
+            val staticHeightFactor = waveHeights.getOrNull(sampleIdx)?.coerceIn(0.18f, 1f) ?: 0.5f
 
             val heightFactor = if (isPlaying) {
                 val animatedPhase = wavePhase + progress * 8f
@@ -387,11 +441,31 @@ fun WaveformBarVisualizer(
             val left = i * (barWidth + actualGap)
             val top = (h - barHeight) / 2f
 
+            val isPastPlayhead = playbackProgress > 0f && progress <= playbackProgress
+            val color = if (isPastPlayhead) {
+                barColor
+            } else if (playbackProgress > 0f) {
+                barColor.copy(alpha = 0.35f)
+            } else {
+                barColor
+            }
+
             drawRoundRect(
-                color = barColor,
+                color = color,
                 topLeft = Offset(left, top),
                 size = Size(barWidth, barHeight),
                 cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+            )
+        }
+
+        if (playbackProgress > 0f) {
+            val scrubberX = w * playbackProgress
+            drawLine(
+                color = scrubberColor,
+                start = Offset(scrubberX, 0f),
+                end = Offset(scrubberX, h),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round
             )
         }
     }
@@ -400,215 +474,457 @@ fun WaveformBarVisualizer(
 @Composable
 fun NoteListItem(
     note: Note,
-    isSelected: Boolean,
     isPlayingThisNote: Boolean,
+    playbackState: AudioPlaybackState = AudioPlaybackState(),
     onSelectNote: (Note) -> Unit,
     onTogglePlayNote: (Note) -> Unit,
-    onDeleteNote: (String) -> Unit,
     modifier: Modifier = Modifier,
     isProcessingThisNote: Boolean = false,
     processingStage: RewindStage? = null,
+    onSeekToPosition: ((Long) -> Unit)? = null,
 ) {
     val formattedTitle = if (note.title.isNotBlank()) note.title else rememberFormattedDateTitle(note.createdAtEpochMs)
     val dateText = rememberFormattedDateTitle(note.createdAtEpochMs)
     val durSec = note.audio.durationMs / 1000L
     val durationText = String.format(Locale.US, "%02d:%02d", durSec / 60, durSec % 60)
     val summary = note.summary
+    val playbackProgress = if (isPlayingThisNote && playbackState.durationMs > 0L) {
+        (playbackState.currentPositionMs.toFloat() / playbackState.durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = BurnishedBronze
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (isSelected) AccentGold else OutlineVariant.copy(alpha = 0.35f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFF181614),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        shadowElevation = 8.dp,
         modifier = modifier
             .fillMaxWidth()
             .clickable { onSelectNote(note) }
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Top Meta Row: Date & Top-Right Status Badge & Delete Icon
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = dateText.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = ParchmentCream.copy(alpha = 0.65f),
-                    fontWeight = FontWeight.Bold,
+        Box(
+            modifier = Modifier
+                .padding(4.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF22201C), Color(0xFF171512))
+                    )
                 )
+                .border(
+                    BorderStroke(1.dp, AccentGold.copy(alpha = 0.18f)),
+                    RoundedCornerShape(14.dp)
+                )
+        ) {
+            Column(
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 0.dp)
+            ) {
+                // Top Meta Row: Date & Top-Right Status Badge & Delete Icon
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = BurnishedBronzeInset,
-                        border = BorderStroke(
-                            1.dp,
-                            when {
-                                isProcessingThisNote -> WaveformTeal.copy(alpha = 0.6f)
-                                summary != null -> AccentGold.copy(alpha = 0.5f)
-                                else -> OutlineVariant.copy(alpha = 0.3f)
-                            }
-                        )
+                    Text(
+                        text = dateText.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ParchmentCream.copy(alpha = 0.65f),
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = when {
-                                isProcessingThisNote -> stringResource(R.string.badge_processing)
-                                summary != null -> stringResource(R.string.badge_saved)
-                                else -> stringResource(R.string.badge_unprocessed)
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = when {
-                                isProcessingThisNote -> WaveformTeal
-                                summary != null -> AccentGold
-                                else -> ParchmentCream.copy(alpha = 0.65f)
-                            },
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { onDeleteNote(note.id) },
-                        modifier = Modifier.size(28.dp),
-                    ) {
-                        TrashBinIcon(tint = ParchmentCream.copy(alpha = 0.45f))
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(6.dp))
-
-            // Title
-            Text(
-                text = formattedTitle,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            // Middle Content Area
-            when {
-                isProcessingThisNote -> {
-                    Spacer(Modifier.height(10.dp))
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = BurnishedBronzeInset,
-                        border = BorderStroke(1.dp, WaveformTeal.copy(alpha = 0.35f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = WaveformTeal
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = if (processingStage == RewindStage.Transcribing) {
-                                        stringResource(R.string.processing_transcribing)
-                                    } else {
-                                        stringResource(R.string.processing_summarizing)
-                                    },
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = WaveformTeal
-                                )
-                            }
-                        }
-                    }
-                }
-                summary != null && summary.executiveSummary.isNotBlank() -> {
-                    Spacer(Modifier.height(10.dp))
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = BurnishedBronzeInset,
-                        border = BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.4f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(AccentGold)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = stringResource(R.string.key_takeaway_label),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = AccentGold,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(Modifier.height(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = AccentGold.copy(alpha = 0.12f),
+                            border = BorderStroke(
+                                1.dp,
+                                when {
+                                    isProcessingThisNote -> WaveformTeal.copy(alpha = 0.6f)
+                                    summary != null -> AccentGold.copy(alpha = 0.35f)
+                                    else -> OutlineVariant.copy(alpha = 0.3f)
+                                }
+                            )
+                        ) {
                             Text(
-                                text = summary.executiveSummary,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = ParchmentCream,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
+                                text = when {
+                                    isProcessingThisNote -> stringResource(R.string.badge_processing)
+                                    summary != null -> stringResource(R.string.badge_saved)
+                                    else -> stringResource(R.string.badge_unprocessed)
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = when {
+                                    isProcessingThisNote -> WaveformTeal
+                                    summary != null -> AccentGold
+                                    else -> ParchmentCream.copy(alpha = 0.65f)
+                                },
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
                     }
                 }
-                else -> {
-                    // Unprocessed: Omit container completely.
+
+                Spacer(Modifier.height(6.dp))
+
+                // Title
+                Text(
+                    text = formattedTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // Middle Content Area
+                when {
+                    isProcessingThisNote -> {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF11100E),
+                            border = BorderStroke(1.dp, WaveformTeal.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = WaveformTeal
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = if (processingStage == RewindStage.Transcribing) {
+                                            stringResource(R.string.processing_transcribing)
+                                        } else {
+                                            stringResource(R.string.processing_summarizing)
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = WaveformTeal
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    summary != null && summary.executiveSummary.isNotBlank() -> {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF11100E),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp, 12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .clip(CircleShape)
+                                            .background(AccentGold)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = stringResource(R.string.key_takeaway_label),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = AccentGold,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = summary.executiveSummary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = ParchmentCream,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        // Unprocessed: Omit container completely.
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                // Bottom Audio Row: Left Waveform & Duration (with bottom padding) + Flush Play Button (0 bottom padding)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Sound Wave: Occupies remaining horizontal space
+                        WaveformBarVisualizer(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(32.dp),
+                            barColor = if (isProcessingThisNote) WaveformTeal else AccentGold,
+                            isPlaying = isPlayingThisNote,
+                            seed = note.createdAtEpochMs,
+                            audioPath = note.audio.localPath,
+                            playbackProgress = playbackProgress,
+                            onSeekProgress = if (onSeekToPosition != null) {
+                                { progress ->
+                                    val targetMs = (progress * note.audio.durationMs).toLong()
+                                    onSeekToPosition(targetMs)
+                                }
+                            } else null,
+                        )
+
+                        Spacer(Modifier.width(10.dp))
+
+                        // Duration Indicator: Restored LCD Counter Capsule beside waveform
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color.Black,
+                            border = BorderStroke(1.dp, Color(0xFF33312B)),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "DUR ",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF8A8275),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp
+                                )
+                                Text(
+                                    text = durationText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    // Cassette Deck Push Button (Flush against bottom of Note Item, 0 space below)
+                    CassettePlayKeyButton(
+                        isPlaying = isPlayingThisNote,
+                        onClick = { onTogglePlayNote(note) },
+                    )
                 }
             }
+        }
+    }
+}
 
-            Spacer(Modifier.height(14.dp))
+/**
+ * Hardware Cassette Tape Deck Push Button (Play Key with Header Plate & Dimpled Grip Dots).
+ * Features spring tactile key depression, press physics, and smooth LED glow animations.
+ */
+@Composable
+fun CassettePlayKeyButton(
+    isPlaying: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
 
-            // Bottom Audio Row: [Expanding Waveform] -> [Duration] -> [Play Button at the Right]
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+    // Tactile Spring Depression Physics
+    val targetDepressionDp = when {
+        isPressed -> 9.dp   // Deep socket depression when holding finger down on key
+        isPlaying -> 7.dp   // Latched down position when actively playing audio
+        else -> 0.dp        // Spring-returned rest position
+    }
+    val animatedDepressionDp by animateDpAsState(
+        targetValue = targetDepressionDp,
+        animationSpec = spring(
+            stiffness = Spring.StiffnessMediumLow,
+            dampingRatio = Spring.DampingRatioMediumBouncy
+        ),
+        label = "keyDepressionAnimation"
+    )
+
+    // Animated Key Face Colors
+    val topGradientColor by animateColorAsState(
+        targetValue = if (isPlaying || isPressed) Color(0xFF1B1917) else Color(0xFF4C4843),
+        animationSpec = tween(durationMillis = 180),
+        label = "topGradientAnimation"
+    )
+    val bottomGradientColor by animateColorAsState(
+        targetValue = if (isPlaying || isPressed) Color(0xFF22201D) else Color(0xFF1C1A18),
+        animationSpec = tween(durationMillis = 180),
+        label = "bottomGradientAnimation"
+    )
+    val keyBorderColor by animateColorAsState(
+        targetValue = if (isPlaying || isPressed) Color(0xFF2A2824) else Color(0xFF5E5950),
+        animationSpec = tween(durationMillis = 180),
+        label = "keyBorderAnimation"
+    )
+
+    // Animated LED Grip Dot Glow
+    val ledDotColor by animateColorAsState(
+        targetValue = if (isPlaying || isPressed) Color(0xFFFFAB00) else Color(0xFF080807),
+        animationSpec = tween(durationMillis = 180),
+        label = "ledDotColorAnimation"
+    )
+    val ledBorderColor by animateColorAsState(
+        targetValue = if (isPlaying || isPressed) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.18f),
+        animationSpec = tween(durationMillis = 180),
+        label = "ledBorderColorAnimation"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 4.dp, bottomEnd = 0.dp),
+        color = Color(0xFF0B0A09),
+        border = BorderStroke(1.dp, Color(0xFF322E28)),
+        shadowElevation = if (isPressed) 2.dp else 8.dp,
+        modifier = modifier
+            .width(56.dp)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null, // Custom tactile spring animation provides physical touch feedback
+                onClick = onClick
+            )
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(2.5.dp)
+        ) {
+            // Top Header Plate ("PLAY")
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFFE8E6E2), Color(0xFFC4C0B6), Color(0xFFA8A49A))
+                        )
+                    )
+                    .border(
+                        BorderStroke(1.dp, Color(0xFF827D74)),
+                        RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)
+                    )
+                    .padding(vertical = 2.5.dp),
+                contentAlignment = Alignment.Center
             ) {
-                // Sound Wave: Occupies 100% of remaining horizontal space
-                WaveformBarVisualizer(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(30.dp),
-                    barColor = if (isProcessingThisNote) WaveformTeal else AccentGold,
-                    isPlaying = isPlayingThisNote,
-                    seed = note.createdAtEpochMs
-                )
-
-                Spacer(Modifier.width(10.dp))
-
-                // Duration Indicator: Beside to the right of the waveform
                 Text(
-                    text = durationText,
+                    text = "PLAY",
                     style = MaterialTheme.typography.labelSmall,
-                    color = ParchmentCream.copy(alpha = 0.75f),
-                    fontWeight = FontWeight.Bold
+                    color = Color(0xFF111111),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.sp
                 )
+            }
 
-                Spacer(Modifier.width(10.dp))
-
-                // Play Button: At the right, symbol only, no text
+            // Dark Socket Housing & 3D Physical Push Key
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(bottomStart = 3.dp, bottomEnd = 0.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xFF000000), Color(0xFF090908), Color(0xFF121110))
+                        )
+                    )
+                    .padding(2.dp)
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(BurnishedBronzeBtn)
-                        .border(BorderStroke(1.dp, OutlineVariant.copy(alpha = 0.6f)), RoundedCornerShape(10.dp))
-                        .clickable { onTogglePlayNote(note) },
-                    contentAlignment = Alignment.Center
+                        .fillMaxSize()
+                        .padding(top = animatedDepressionDp.coerceAtLeast(0.dp)) // Spring-animated mechanical socket depression
+                        .clip(RoundedCornerShape(bottomStart = 3.dp, bottomEnd = 0.dp, topStart = 3.dp, topEnd = 3.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(topGradientColor, bottomGradientColor)
+                            )
+                        )
+                        .border(
+                            BorderStroke(1.dp, keyBorderColor),
+                            RoundedCornerShape(bottomStart = 3.dp, bottomEnd = 0.dp, topStart = 3.dp, topEnd = 3.dp)
+                        )
                 ) {
-                    if (isPlayingThisNote) {
-                        PauseBarsIcon(tint = AccentGold)
-                    } else {
-                        PlayTriangleIcon(tint = AccentGold)
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Top Bevel Rim Highlight (Light reflection on top edge)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.5.dp)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.1f),
+                                            Color.White.copy(alpha = 0.45f),
+                                            Color.White.copy(alpha = 0.1f)
+                                        )
+                                    )
+                                )
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        // Horizontal Step Ridge Line (3D Bevel Break)
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(Color(0xFF0C0B0A))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(Color.White.copy(alpha = 0.12f))
+                            )
+                        }
+
+                        // Bottom Dimpled Grip Section
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color(0xFF181715), Color(0xFF121110))
+                                    )
+                                )
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                repeat(3) {
+                                    // Vertical Oval Dimple Pocket
+                                    Box(
+                                        modifier = Modifier
+                                            .width(5.5.dp)
+                                            .height(7.5.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(ledDotColor)
+                                            .border(
+                                                BorderStroke(0.5.dp, ledBorderColor),
+                                                RoundedCornerShape(3.dp)
+                                            )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -799,15 +1115,48 @@ fun HomeScreen(
     playbackState: AudioPlaybackState,
     processingUiState: NoteProcessingUiState,
     onSelectNote: (Note) -> Unit,
-    onDeleteNote: (String) -> Unit,
     onTogglePlayPause: () -> Unit,
     onProcessNote: (String) -> Unit,
     onManualSave: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
+    onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier.size(44.dp),
+                    ) {
+                        SettingsGearIcon(
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                }
+                Text(
+                    text = "Recordings",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
             RecordFloatingActionButton(
@@ -821,11 +1170,11 @@ fun HomeScreen(
             playbackState = playbackState,
             processingUiState = processingUiState,
             onSelectNote = onSelectNote,
-            onDeleteNote = onDeleteNote,
             onTogglePlayPause = onTogglePlayPause,
             onProcessNote = onProcessNote,
+            onTogglePlayNote = onTogglePlayNote,
+            onSeekToPosition = onSeekToPosition,
             modifier = Modifier.padding(innerPadding),
-            onNavigateToSettings = onNavigateToSettings,
         )
     }
 }
@@ -840,11 +1189,11 @@ fun HomeRecordingsContent(
     playbackState: AudioPlaybackState,
     processingUiState: NoteProcessingUiState,
     onSelectNote: (Note) -> Unit,
-    onDeleteNote: (String) -> Unit,
     onTogglePlayPause: () -> Unit,
     onProcessNote: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onNavigateToSettings: () -> Unit = {},
+    onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
+    onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -864,33 +1213,6 @@ fun HomeRecordingsContent(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
         ) {
-            // Top Header Row: Recordings title on left, Settings gear icon on top-right
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    text = "Recordings",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                IconButton(
-                    onClick = onNavigateToSettings,
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    SettingsGearIcon(
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-            }
-
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
@@ -961,88 +1283,20 @@ fun HomeRecordingsContent(
 
                         NoteListItem(
                             note = note,
-                            isSelected = isSelected,
                             isPlayingThisNote = isPlayingThisNote,
+                            playbackState = playbackState,
                             isProcessingThisNote = isProcessingThisNote,
                             processingStage = if (isProcessingThisNote) processingUiState.stage else null,
                             onSelectNote = { selected ->
                                 onSelectNote(selected)
                             },
                             onTogglePlayNote = { selected ->
-                                onSelectNote(selected)
-                                onTogglePlayPause()
+                                onTogglePlayNote(selected)
                             },
-                            onDeleteNote = onDeleteNote,
+                            onSeekToPosition = { posMs ->
+                                onSeekToPosition(note, posMs)
+                            },
                         )
-                    }
-
-                    // Selected Note Detail Section
-                    if (selectedNote != null) {
-                        item {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider()
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            NoteProcessingControls(
-                                uiState = processingUiState,
-                                onProcessNote = { onProcessNote(selectedNote.id) },
-                            )
-                        }
-
-                        item {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                ),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.ai_intelligence_title),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-
-                                    Text(
-                                        text = stringResource(R.string.summary_label),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    val summary = selectedNote.summary
-                                    if (summary != null) {
-                                        Text(
-                                            text = summary.executiveSummary,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                        )
-                                        if (summary.keyPoints.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(
-                                                text = stringResource(R.string.key_bullet_points),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Bold,
-                                            )
-                                            summary.keyPoints.forEach { point ->
-                                                Text(
-                                                    text = "• $point",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        Text(
-                                            text = stringResource(R.string.no_summary),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -1166,7 +1420,21 @@ fun LiveTestAppShell(
                             playbackViewModel.loadNote(note)
                             navController.navigate("playback/${note.id}")
                         },
-                        onDeleteNote = noteListViewModel::deleteNote,
+                        onTogglePlayNote = { note ->
+                            if (selectedNoteId != note.id) {
+                                selectedNoteId = note.id
+                                playbackViewModel.loadNote(note)
+                            } else {
+                                playbackViewModel.togglePlayPause()
+                            }
+                        },
+                        onSeekToPosition = { note, posMs ->
+                            if (selectedNoteId != note.id) {
+                                selectedNoteId = note.id
+                                playbackViewModel.loadNote(note)
+                            }
+                            playbackViewModel.seekTo(posMs)
+                        },
                         onTogglePlayPause = playbackViewModel::togglePlayPause,
                         onProcessNote = processingViewModel::processNote,
                         onManualSave = {
@@ -1442,7 +1710,6 @@ private fun HomeScreenPreview() {
                         playbackState = AudioPlaybackState(),
                         processingUiState = NoteProcessingUiState(),
                         onSelectNote = {},
-                        onDeleteNote = {},
                         onTogglePlayPause = {},
                         onProcessNote = {},
                         onManualSave = { navController.navigate("record") },
@@ -1552,11 +1819,9 @@ private fun NoteListItemPreview() {
                         generationMode = group.two.knockledge.data.model.AiEngineType.LOCAL_ON_DEVICE,
                     ),
                 ),
-                isSelected = false,
                 isPlayingThisNote = false,
                 onSelectNote = {},
                 onTogglePlayNote = {},
-                onDeleteNote = {},
             )
         }
     }

@@ -34,19 +34,19 @@ colors:
   waveform-pink: "#ff3d9a"
 typography:
   display:
-    fontFamily: "KiwiSoda, sans-serif"
+    fontFamily: "OneSize, sans-serif"
     fontSize: "32px"
-    fontWeight: 500
+    fontWeight: 400
     lineHeight: 1.2
   headline:
-    fontFamily: "KiwiSoda, sans-serif"
+    fontFamily: "OneSize, sans-serif"
     fontSize: "24px"
-    fontWeight: 500
+    fontWeight: 400
     lineHeight: 1.25
   title:
-    fontFamily: "KiwiSoda, sans-serif"
+    fontFamily: "OneSize, sans-serif"
     fontSize: "18px"
-    fontWeight: 500
+    fontWeight: 400
     lineHeight: 1.3
   body:
     fontFamily: "VCR OSD Mono, monospace"
@@ -110,7 +110,7 @@ The interface pairs Android platform conventions with analog instrument design. 
 - **Material 3 Semantic Architecture:** Complete mapping to official Android M3 color, typography, shape, and elevation roles.
 - **Atmospheric Obsidian Substrate:** Deep midnight violet ground illuminated by diffuse brass gradients.
 - **Physical Anchor Cards:** High-contrast vintage parchment surfaces housing captured spoken notes.
-- **Dual Typographic Personality:** Friendly KiwiSoda display titles paired with precise VCR OSD Monospace telemetry.
+- **Dual Typographic Personality:** Friendly OneSize display titles paired with precise VCR OSD Monospace telemetry.
 - **Hardware-Grade Tactility:** Solid 1px borders, 4px micro-radii, and 48dp minimum interaction targets.
 
 ## Colors
@@ -154,13 +154,13 @@ The color system maps the Obsidian & Brass aesthetic into official Material 3 `C
 
 The type system pairs friendly retro-chunky headings with laser-precise hardware monospace data. Both fonts reside in the native Android resource directory `androidApp/src/main/res/font/`.
 
-### 1. KiwiSoda
+### 1. OneSize
 
-- **Asset Path:** [androidApp/src/main/res/font/kiwi_soda.ttf](file:///D:/General%20Project%20Bins/Academics/CIT306/Knockledge/androidApp/src/main/res/font/kiwi_soda.ttf)
+- **Asset Path:** [androidApp/src/main/res/font/onesize.ttf](file:///D:/General%20Project%20Bins/Academics/CIT306/Knockledge/androidApp/src/main/res/font/onesize.ttf)
 - **Classification:** Retro-Chunky Pixel Display
-- **Supported Weights:** Normal / Medium (500)
+- **Supported Weights:** Regular (400) only; never request bold (Android would synthesize it)
 - **Fallback Stacks:** `sans-serif-condensed`, `sans-serif`
-- **Design Intent:** KiwiSoda delivers a warm, analog feel for headlines without digital coldness. Its rounded geometric construction feels human and approachable while grounding the hardware aesthetic.
+- **Design Intent:** OneSize delivers a warm, analog feel for headlines without digital coldness. Its rounded geometric construction feels human and approachable while grounding the hardware aesthetic.
 - **Application Scope:** Screen hero titles, modal headers, card titles, and primary button labels.
 
 ### 2. VCR OSD Mono
@@ -176,54 +176,61 @@ The type system pairs friendly retro-chunky headings with laser-precise hardware
 
 | Role | Font Family | Size | Line Height | Weight | Usage |
 |---|---|---|---|---|---|
-| **Display Large** | KiwiSoda | 32sp | 40sp | 500 | Hero titles ("Your Anchors", "Settings") with gold glow |
-| **Headline Medium** | KiwiSoda | 24sp | 32sp | 500 | Modal titles and prominent section headers |
-| **Title Medium** | KiwiSoda | 18sp | 24sp | 500 | Anchor card titles and dialog headings |
+| **Display Large** | OneSize | 32sp | 40sp | 400 | Hero titles ("Your Anchors", "Settings") with gold glow |
+| **Headline Medium** | OneSize | 24sp | 32sp | 400 | Modal titles and prominent section headers |
+| **Title Medium** | OneSize | 18sp | 24sp | 400 | Anchor card titles and dialog headings |
+| **Title Small** | OneSize | 14sp | 20sp | 400 | Compact row titles and small action labels |
 | **Body Large** | VCR OSD Mono | 16sp | 24sp | 400 | Long-form transcripts and key summary paragraphs |
 | **Body Medium** | VCR OSD Mono | 14sp | 20sp | 400 | Note summaries, snippets, and setting descriptions |
-| **Label Large** | KiwiSoda | 16sp | 20sp | 500 | Primary button labels and prominent actions |
+| **Label Large** | OneSize | 16sp | 24sp | 400 | Primary button labels and prominent actions |
 | **Label Medium** | VCR OSD Mono | 12sp | 16sp | 400 | Telemetry counters, session timers, and buffer bounds |
 
 ### Kotlin Jetpack Compose Definition
 
 ```kotlin
 // androidApp/src/main/kotlin/group/two/knockledge/ui/theme/Type.kt
-val KiwiSoda = FontFamily(Font(R.font.kiwi_soda, FontWeight.Normal))
+val OneSize = FontFamily(Font(R.font.onesize, FontWeight.Normal))
 val VcrOsdMono = FontFamily(Font(R.font.vcr_osd_mono, FontWeight.Normal))
 
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 32.sp,
         lineHeight = 40.sp,
     ),
     headlineLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 32.sp,
         lineHeight = 40.sp,
     ),
     headlineMedium = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 24.sp,
         lineHeight = 32.sp,
     ),
     titleLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 18.sp,
         lineHeight = 24.sp,
     ),
     titleMedium = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 18.sp,
         lineHeight = 24.sp,
     ),
+    titleSmall = TextStyle(
+        fontFamily = OneSize,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+    ),
     labelLarge = TextStyle(
-        fontFamily = KiwiSoda,
+        fontFamily = OneSize,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
@@ -251,7 +258,7 @@ val Typography = Typography(
 ```
 
 ### Named Rules
-**The Dual Identity Rule.** Section headers and titles always use KiwiSoda. Timestamps, timers, statuses, and data counters always use VCR OSD Mono.
+**The Dual Identity Rule.** Section headers and titles always use OneSize. Timestamps, timers, statuses, and data counters always use VCR OSD Mono.
 **The Numeric Stability Rule.** Real-time numeric counters and timers must use VCR OSD Mono to prevent layout jitter from proportional glyph widths.
 **The System Scale Rule.** All text units use sp dimensions to respect user system accessibility scale settings.
 

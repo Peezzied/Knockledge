@@ -73,7 +73,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Snackbar
@@ -103,7 +102,6 @@ import java.security.MessageDigest
 import group.two.knockledge.ui.theme.AccentGold
 import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.BurnishedBronze
-import group.two.knockledge.ui.theme.KiwiSoda
 import group.two.knockledge.ui.theme.KnockledgeTheme
 import group.two.knockledge.ui.theme.MutedSand
 import group.two.knockledge.ui.theme.ObsidianMidnight
@@ -213,7 +211,6 @@ fun SettingsScreen(
                     text = stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineLarge,
                     color = ParchmentCream,
-                    fontSize = 32.sp,
                 )
             }
 
@@ -328,8 +325,7 @@ private fun BufferDurationCard(
             }
             Text(
                 text = text,
-                fontFamily = KiwiSoda,
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleMedium,
                 color = ParchmentCream,
             )
 
@@ -375,8 +371,7 @@ private fun StorageConsumptionCard(
         ) {
             Text(
                 text = "${storageConsumptionMb.toInt()} MB",
-                fontFamily = KiwiSoda,
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleMedium,
                 color = ParchmentCream,
             )
 
@@ -422,8 +417,7 @@ private fun AutomaticAiCard(
         ) {
             Text(
                 text = stringResource(R.string.settings_ai_toggle_label),
-                fontFamily = KiwiSoda,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.labelLarge,
                 color = ParchmentCream,
             )
 
@@ -518,8 +512,7 @@ private fun AiExecutionModeCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.settings_transcription_models_menu_title),
-                            fontFamily = KiwiSoda,
-                            fontSize = 16.sp,
+                            style = MaterialTheme.typography.labelLarge,
                             color = ParchmentCream,
                         )
                         Spacer(modifier = Modifier.height(2.dp))
@@ -554,8 +547,7 @@ private fun AiExecutionModeCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.settings_summary_models_menu_title),
-                            fontFamily = KiwiSoda,
-                            fontSize = 16.sp,
+                            style = MaterialTheme.typography.labelLarge,
                             color = ParchmentCream,
                         )
                         Spacer(modifier = Modifier.height(2.dp))
@@ -605,8 +597,7 @@ private fun AiExecutionModeCard(
                 Column {
                     Text(
                         text = stringResource(R.string.settings_transcription_models_sheet_title),
-                        fontFamily = KiwiSoda,
-                        fontSize = 22.sp,
+                        style = MaterialTheme.typography.headlineMedium,
                         color = ParchmentCream,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -652,8 +643,7 @@ private fun AiExecutionModeCard(
                 ) {
                     Text(
                         text = "Done",
-                        fontFamily = KiwiSoda,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }
@@ -690,8 +680,7 @@ private fun AiExecutionModeCard(
                 Column {
                     Text(
                         text = stringResource(R.string.settings_summary_models_sheet_title),
-                        fontFamily = KiwiSoda,
-                        fontSize = 22.sp,
+                        style = MaterialTheme.typography.headlineMedium,
                         color = ParchmentCream,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -744,8 +733,7 @@ private fun AiExecutionModeCard(
                 ) {
                     Text(
                         text = "Done",
-                        fontFamily = KiwiSoda,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.labelLarge,
                     )
                 }
             }
@@ -811,15 +799,13 @@ private fun OfflineModelItem(
                     Column {
                         Text(
                             text = modelFile.label,
-                            fontFamily = KiwiSoda,
-                            fontSize = 15.sp,
+                            style = MaterialTheme.typography.titleSmall,
                             color = ParchmentCream,
                         )
                         Text(
                             text = "$description · $sizeText",
                             style = MaterialTheme.typography.bodySmall,
                             color = MutedSand,
-                            fontSize = 11.sp,
                         )
                     }
                 }
@@ -875,8 +861,7 @@ private fun OfflineModelItem(
                     ) {
                         Text(
                             text = stringResource(R.string.settings_download_model_btn, sizeText),
-                            fontFamily = KiwiSoda,
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.titleSmall,
                         )
                     }
                 }
@@ -1067,8 +1052,7 @@ private fun GestureTestCard(
                 } else {
                     stringResource(R.string.settings_gesture_test_inactive_prompt)
                 },
-                fontFamily = KiwiSoda,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.labelLarge,
                 color = if (isGestureTestActive) ParchmentCream else MutedSand,
             )
         }
@@ -1293,8 +1277,7 @@ private fun ActiveAccountCard(
                     } else {
                         Text(
                             text = initials.uppercase(),
-                            fontFamily = KiwiSoda,
-                            fontSize = 18.sp,
+                            style = MaterialTheme.typography.titleMedium,
                             color = TextInk,
                         )
                     }
@@ -1303,8 +1286,7 @@ private fun ActiveAccountCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = name,
-                        fontFamily = KiwiSoda,
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         color = ParchmentCream,
                     )
                     Spacer(modifier = Modifier.height(2.dp))
@@ -1329,8 +1311,7 @@ private fun ActiveAccountCard(
             ) {
                 Text(
                     text = stringResource(R.string.settings_sync_label),
-                    fontFamily = KiwiSoda,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.labelLarge,
                     color = ParchmentCream,
                 )
 
@@ -1364,8 +1345,7 @@ private fun ActiveAccountCard(
             ) {
                 Text(
                     text = stringResource(R.string.sign_out),
-                    fontFamily = KiwiSoda,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
@@ -1430,8 +1410,7 @@ private fun SegmentedButtonGroup(
             ) {
                 Text(
                     text = option,
-                    fontFamily = KiwiSoda,
-                    fontSize = 16.sp,
+                    style = MaterialTheme.typography.labelLarge,
                     textAlign = TextAlign.Center,
                 )
             }

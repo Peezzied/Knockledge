@@ -79,6 +79,7 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    sourceSets.getByName("debug").assets.srcDir("src/androidTest/assets")
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false

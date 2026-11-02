@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knockledge Note Item - Cassette Tape Key UI Variants</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0c;
+            --chassis-dark: #121318;
+            --card-bronze: #1c1a17;
+            --card-border: rgba(212, 175, 55, 0.25);
+            --gold-primary: #d4af37;
+            --gold-glow: rgba(212, 175, 55, 0.4);
+            --amber-led: #ffab00;
+            --teal-accent: #00e5ff;
+            --text-cream: #f4efe6;
+            --text-muted: #8e8a82;
+            --lcd-bg: #050805;
+            --lcd-text: #39ff14;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-cream);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            max-width: 800px;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 0%, #d4af37 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .variants-container {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            width: 100%;
+            max-width: 580px;
+        }
+
+        .variant-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .variant-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gold-primary);
+        }
+
+        .variant-tag {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        /* Common Card Outer Shell (Doppelrand Double-Bezel) */
+        .note-card {
+            background: #181614;
+            border-radius: 18px;
+            padding: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .note-card-inner {
+            background: linear-gradient(180deg, #22201c 0%, #171512 100%);
+            border-radius: 14px;
+            padding: 16px 16px 12px 16px;
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Top Meta Row */
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .card-date {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .badge-saved {
+            background: rgba(212, 175, 55, 0.12);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            color: var(--gold-primary);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .summary-box {
+            background: #11100e;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 16px;
+        }
+
+        .summary-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            color: var(--gold-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .summary-dot {
+            width: 5px;
+            height: 5px;
+            background-color: var(--gold-primary);
+            border-radius: 50%;
+        }
+
+        .summary-text {
+            font-size: 12px;
+            color: var(--text-cream);
+            line-height: 1.4;
+            opacity: 0.85;
+        }
+
+        /* Bottom Controls Row: Waveform -> Duration Display -> Enlarged Play Key */
+        .card-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .waveform-container {
+            flex: 1;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            gap: 2.5px;
+        }
+
+        .wave-bar {
+            flex: 1;
+            background: rgba(212, 175, 55, 0.3);
+            border-radius: 2px;
+            transition: height 0.2s ease, background 0.2s ease;
+        }
+
+        .wave-bar.played {
+            background: var(--gold-primary);
+            box-shadow: 0 0 6px rgba(212, 175, 55, 0.5);
+        }
+
+        /* DURATION DISPLAY STYLES (RESTORED TO SITTING HORIZONTALLY BESIDE WAVEFORM) */
+        .v1-lcd-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #000000;
+            padding: 5px 9px 5px 7px;
+            border-radius: 6px;
+            border: 1px solid #33312b;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+
+        .v1-dur-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            font-style: italic;
+            color: #8a8275;
+            letter-spacing: 0.5px;
+        }
+
+        .v1-lcd-screen {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 0 6px rgba(255, 255, 255, 0.7);
+            letter-spacing: 1px;
+        }
+
+        .v2-oled-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: radial-gradient(circle at center, #0d120d 0%, #030503 100%);
+            padding: 5px 11px;
+            border-radius: 20px;
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.1), inset 0 1px 2px rgba(0,0,0,0.9);
+            flex-shrink: 0;
+        }
+
+        .v2-dur-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 800;
+            color: rgba(57, 255, 20, 0.6);
+            letter-spacing: 1px;
+        }
+
+        .v2-oled-screen {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--lcd-text);
+            text-shadow: 0 0 8px rgba(57, 255, 20, 0.8);
+        }
+
+        .v3-counter-container {
+            display: inline-flex;
+            align-items: center;
+            background: #0f0e0c;
+            border-radius: 6px;
+            border: 1px solid #332d24;
+            padding: 3px 8px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+            flex-shrink: 0;
+        }
+
+        .v3-dur-badge {
+            font-family: 'Chakra Petch', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--gold-primary);
+            margin-right: 6px;
+            opacity: 0.8;
+        }
+
+        .v3-tumbler {
+            background: #1c1a17;
+            border-radius: 3px;
+            padding: 2px 5px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 800;
+            color: #ffffff;
+            border: 1px solid rgba(255,255,255,0.1);
+            letter-spacing: 1px;
+        }
+
+        /* HARDWARE CASSETTE TAPE PLAY BUTTON (ENLARGED & ANCHORED AT BOTTOM RIGHT) */
+        .cassette-key-module {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 54px; /* Increased from 48px */
+            background: #0d0c0a;
+            border-radius: 7px 7px 5px 5px;
+            padding: 2.5px;
+            border: 1px solid #38342e;
+            box-shadow: 0 5px 14px rgba(0,0,0,0.7);
+            align-self: flex-end;
+            margin-bottom: -12px; /* Flush anchored against bottom card boundary */
+            flex-shrink: 0;
+        }
+
+        .key-header-plate {
+            width: 100%;
+            background: linear-gradient(180deg, #d8d6d2 0%, #a8a49c 100%);
+            color: #0d0d0e;
+            font-size: 10px; /* Increased from 9px */
+            font-weight: 900;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            text-align: center;
+            padding: 2.5px 0;
+            letter-spacing: 0.8px;
+            border-radius: 4px 4px 0 0;
+            border-bottom: 1px solid #111;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+        }
+
+        .key-socket {
+            width: 100%;
+            height: 58px; /* Increased from 52px */
+            background: #050505;
+            border-radius: 0 0 3px 3px;
+            padding: 2px;
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.9);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .key-cap {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #383632 0%, #22201d 60%, #171614 100%);
+            border-radius: 3px;
+            border: 1px solid #4a463e;
+            border-bottom: 2px solid #0a0a0a;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.25), 0 3px 6px rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px 4px 6px 4px;
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.12s ease, background 0.12s ease;
+        }
+
+        .key-cap:hover {
+            background: linear-gradient(180deg, #423e39 0%, #282622 60%, #1d1b18 100%);
+        }
+
+        .key-cap.pressed {
+            transform: translateY(6px);
+            background: linear-gradient(180deg, #181715 0%, #201f1c 100%);
+            border-bottom-width: 1px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .key-surface {
+            width: 100%;
+            height: 26px; /* Increased from 22px */
+            border-bottom: 1px solid rgba(0,0,0,0.4);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .key-grip-dots {
+            display: flex;
+            justify-content: center;
+            gap: 4px; /* Increased from 3.5px */
+            margin-bottom: 3px;
+        }
+
+        .dot {
+            width: 5.5px; /* Increased from 4.5px */
+            height: 5.5px;
+            background: #100f0e;
+            border-radius: 50%;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.15);
+            transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .key-cap.pressed .dot {
+            background: var(--amber-led, #ffab00);
+            box-shadow: 0 0 8px #ffab00, inset 0 1px 1px rgba(0,0,0,0.4);
+        }
+
+        /* VARIANT 2 BRONZE HEADER PLATE */
+        .v2-header-plate {
+            background: linear-gradient(180deg, #d4af37 0%, #997d20 100%);
+            color: #0d0c0a;
+            border-bottom-color: #59460e;
+        }
+
+        /* VARIANT 3 DARK INDUSTRIAL HEADER PLATE */
+        .v3-header-plate {
+            background: linear-gradient(180deg, #2b2824 0%, #171513 100%);
+            color: #d4af37;
+            border-bottom-color: #0a0908;
+            text-shadow: 0 0 4px rgba(212, 175, 55, 0.4);
+        }
+
+        .interactive-note {
+            margin-top: 30px;
+            background: rgba(255,255,255,0.03);
+            border: 1px dashed rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Knockledge Cassette Deck UI - Restored Duration & Enlarged Play Key</h1>
+        <p>Duration counter restored beside waveform. Physical cassette PLAY button enlarged and anchored at bottom right.</p>
+    </div>
+
+    <div class="variants-container">
+
+        <!-- VARIANT 1 -->
+        <div class="variant-wrapper">
+            <div class="variant-title">
+                <span>Variant 1: Restored Duration & Enlarged Silver Key</span>
+                <span class="variant-tag">Classic Deck Layout</span>
+            </div>
+            <div class="note-card">
+                <div class="note-card-inner">
+                    <div class="card-top">
+                        <span class="card-date">NOV 2, 2:45 PM</span>
+                        <span class="badge-saved">SAVED</span>
+                    </div>
+                    <div class="card-title">Engineering Standup & Roadmap Review</div>
+                    <div class="summary-box">
+                        <div class="summary-label">
+                            <div class="summary-dot"></div>
+                            Key Takeaway
+                        </div>
+                        <div class="summary-text">Discussed Q3 hackathon milestones, resource allocation, and timeline buffers.</div>
+                    </div>
+                    <div class="card-bottom">
+                        <!-- Waveform -->
+                        <div class="waveform-container">
+                            <div class="wave-bar played" style="height: 40%"></div>
+                            <div class="wave-bar played" style="height: 70%"></div>
+                            <div class="wave-bar played" style="height: 100%"></div>
+                            <div class="wave-bar played" style="height: 60%"></div>
+                            <div class="wave-bar played" style="height: 85%"></div>
+                            <div class="wave-bar played" style="height: 45%"></div>
+                            <div class="wave-bar" style="height: 90%"></div>
+                            <div class="wave-bar" style="height: 65%"></div>
+                            <div class="wave-bar" style="height: 30%"></div>
+                            <div class="wave-bar" style="height: 75%"></div>
+                            <div class="wave-bar" style="height: 95%"></div>
+                            <div class="wave-bar" style="height: 50%"></div>
+                            <div class="wave-bar" style="height: 80%"></div>
+                            <div class="wave-bar" style="height: 40%"></div>
+                            <div class="wave-bar" style="height: 60%"></div>
+                            <div class="wave-bar" style="height: 35%"></div>
+                        </div>
+
+                        <!-- Restored Duration LCD Capsule (Beside Waveform) -->
+                        <div class="v1-lcd-container">
+                            <span class="v1-dur-label">DUR</span>
+                            <span class="v1-lcd-screen">02:05</span>
+                        </div>
+
+                        <!-- Enlarged Bottom-Right Anchored Push Key -->
+                        <div class="cassette-key-module">
+                            <div class="key-header-plate">PLAY</div>
+                            <div class="key-socket">
+                                <div class="key-cap" onclick="this.classList.toggle('pressed')">
+                                    <div class="key-surface"></div>
+                                    <div class="key-grip-dots">
+                                        <span class="dot"></span>
+                                        <span class="dot"></span>
+                                        <span class="dot"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VARIANT 2 -->
+        <div class="variant-wrapper">
+            <div class="variant-title">
+                <span>Variant 2: Restored Duration & Enlarged Gold Key</span>
+                <span class="variant-tag">Studio Gold Layout</span>
+            </div>
+            <div class="note-card">
+                <div class="note-card-inner">
+                    <div class="card-top">
+                        <span class="card-date">NOV 2, 1:15 PM</span>
+                        <span class="badge-saved">SAVED</span>
+                    </div>
+                    <div class="card-title">Product Design Sprint Sync</div>
+                    <div class="summary-box">
+                        <div class="summary-label">
+                            <div class="summary-dot"></div>
+                            Key Takeaway
+                        </div>
+                        <div class="summary-text">Finalized gesture threshold and circular buffer memory allocation strategy.</div>
+                    </div>
+                    <div class="card-bottom">
+                        <div class="waveform-container">
+                            <div class="wave-bar played" style="height: 50%"></div>
+                            <div class="wave-bar played" style="height: 80%"></div>
+                            <div class="wave-bar played" style="height: 40%"></div>
+                            <div class="wave-bar played" style="height: 90%"></div>
+                            <div class="wave-bar" style="height: 65%"></div>
+                            <div class="wave-bar" style="height: 30%"></div>
+                            <div class="wave-bar" style="height: 75%"></div>
+                            <div class="wave-bar" style="height: 100%"></div>
+                            <div class="wave-bar" style="height: 55%"></div>
+                            <div class="wave-bar" style="height: 85%"></div>
+                            <div class="wave-bar" style="height: 40%"></div>
+                            <div class="wave-bar" style="height: 70%"></div>
+                            <div class="wave-bar" style="height: 95%"></div>
+                            <div class="wave-bar" style="height: 60%"></div>
+                            <div class="wave-bar" style="height: 35%"></div>
+                            <div class="wave-bar" style="height: 50%"></div>
+                        </div>
+
+                        <!-- Restored OLED Duration Capsule -->
+                        <div class="v2-oled-container">
+                            <span class="v2-dur-tag">DUR</span>
+                            <span class="v2-oled-screen">01:30</span>
+                        </div>
+
+                        <!-- Enlarged Gold Cassette Push Key -->
+                        <div class="cassette-key-module">
+                            <div class="key-header-plate v2-header-plate">PLAY</div>
+                            <div class="key-socket">
+                                <div class="key-cap" onclick="this.classList.toggle('pressed')">
+                                    <div class="key-surface"></div>
+                                    <div class="key-grip-dots">
+                                        <span class="dot"></span>
+                                        <span class="dot"></span>
+                                        <span class="dot"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VARIANT 3 -->
+        <div class="variant-wrapper">
+            <div class="variant-title">
+                <span>Variant 3: Restored Duration & Enlarged Dark Key</span>
+                <span class="variant-tag">Dark Hi-Fi Layout</span>
+            </div>
+            <div class="note-card">
+                <div class="note-card-inner">
+                    <div class="card-top">
+                        <span class="card-date">NOV 2, 10:30 AM</span>
+                        <span class="badge-saved">SAVED</span>
+                    </div>
+                    <div class="card-title">Architecture & Room Database Migration</div>
+                    <div class="summary-box">
+                        <div class="summary-label">
+                            <div class="summary-dot"></div>
+                            Key Takeaway
+                        </div>
+                        <div class="summary-text">Reviewed Room DB schema changes, migration strategies, and fallback handling.</div>
+                    </div>
+                    <div class="card-bottom">
+                        <div class="waveform-container">
+                            <div class="wave-bar played" style="height: 30%"></div>
+                            <div class="wave-bar played" style="height: 60%"></div>
+                            <div class="wave-bar played" style="height: 85%"></div>
+                            <div class="wave-bar played" style="height: 100%"></div>
+                            <div class="wave-bar played" style="height: 70%"></div>
+                            <div class="wave-bar played" style="height: 40%"></div>
+                            <div class="wave-bar played" style="height: 90%"></div>
+                            <div class="wave-bar played" style="height: 65%"></div>
+                            <div class="wave-bar" style="height: 80%"></div>
+                            <div class="wave-bar" style="height: 45%"></div>
+                            <div class="wave-bar" style="height: 75%"></div>
+                            <div class="wave-bar" style="height: 50%"></div>
+                            <div class="wave-bar" style="height: 90%"></div>
+                            <div class="wave-bar" style="height: 60%"></div>
+                            <div class="wave-bar" style="height: 40%"></div>
+                            <div class="wave-bar" style="height: 25%"></div>
+                        </div>
+
+                        <!-- Restored Tumbler Tape Counter -->
+                        <div class="v3-counter-container">
+                            <span class="v3-dur-badge">DUR</span>
+                            <span class="v3-tumbler">03:30</span>
+                        </div>
+
+                        <!-- Enlarged Dark Industrial Cassette Push Key -->
+                        <div class="cassette-key-module">
+                            <div class="key-header-plate v3-header-plate">PLAY</div>
+                            <div class="key-socket">
+                                <div class="key-cap pressed" onclick="this.classList.toggle('pressed')">
+                                    <div class="key-surface"></div>
+                                    <div class="key-grip-dots">
+                                        <span class="dot"></span>
+                                        <span class="dot"></span>
+                                        <span class="dot"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="interactive-note">
+        💡 Click on the physical PLAY push keys anchored at the bottom right to test key depression and LED lighting!
+    </div>
+
+</body>
+</html>

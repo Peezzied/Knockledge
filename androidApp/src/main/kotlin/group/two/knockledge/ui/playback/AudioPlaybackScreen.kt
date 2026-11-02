@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -25,8 +26,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -55,6 +58,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -63,6 +67,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -77,6 +82,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import group.two.knockledge.R
 import group.two.knockledge.audio.AudioPlaybackState
+import group.two.knockledge.audio.readWaveformPeaks
 import group.two.knockledge.data.model.AudioMetadata
 import group.two.knockledge.data.model.ChapterMarker
 import group.two.knockledge.data.model.Note
@@ -103,7 +109,10 @@ import group.two.knockledge.ui.theme.SurfaceIndigo
 import group.two.knockledge.ui.theme.TextInk
 import group.two.knockledge.ui.theme.VcrOsdMono
 import group.two.knockledge.ui.theme.WaveformTeal
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -215,6 +224,9 @@ fun AudioPlaybackScreen(
     val isSkippedThisNote = processingUiState?.noteId == note.id && processingUiState.state == NoteAiProcessingState.SKIPPED
     val stageThisNote = if (isProcessingThisNote) processingUiState.stage else null
     val errorMessageThisNote = if (isFailedThisNote || isSkippedThisNote) processingUiState.errorMessage else null
+    val peaks by produceState(FloatArray(0), note.audio.localPath) {
+        value = withContext(Dispatchers.IO) { readWaveformPeaks(File(note.audio.localPath)) }
+    }
 
     Scaffold(
         modifier = modifier
@@ -245,6 +257,7 @@ fun AudioPlaybackScreen(
             // 1. Audio Playback Dock (Edge-to-edge, matching screen width)
             AudioPlaybackDock(
                 state = playbackState,
+                peaks = peaks,
                 chapters = chapters,
                 onTogglePlayPause = onTogglePlayPause,
                 onSeekTo = onSeekTo,
@@ -714,7 +727,9 @@ private fun AiEmptyOrProcessingView(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -948,7 +963,7 @@ private fun AudioSummaryView(
     }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(vertical = 8.dp),
     ) {
@@ -1060,8 +1075,23 @@ private fun AudioTranscriptView(
     modifier: Modifier = Modifier,
     isSkipped: Boolean = false,
 ) {
-    val sentences = transcript?.sentences.orEmpty()
-    if (sentences.isEmpty() && transcript?.fullText.isNullOrBlank()) {
+    val sentences = transcript?.sentences.orEmpty().ifEmpty {
+        if (!transcript?.fullText.isNullOrBlank()) {
+            listOf(
+                Sentence(
+                    speaker = "Speaker",
+                    startTimeMs = 0L,
+                    endTimeMs = 0L,
+                    text = transcript.fullText,
+                    confidence = 1.0f,
+                )
+            )
+        } else {
+            emptyList()
+        }
+    }
+
+    if (sentences.isEmpty()) {
         AiEmptyOrProcessingView(
             title = stringResource(R.string.no_transcript),
             subtitle = stringResource(R.string.transcript_empty_subtitle),
@@ -1078,14 +1108,22 @@ private fun AudioTranscriptView(
 
     val listState = rememberLazyListState()
 
-    // Smooth scroll to keep the active sentence visible
+    // Smooth scroll to keep the active sentence visible as playback runs
     val activeIndex = sentences.indexOfFirst { sentence ->
-        currentPositionMs in sentence.startTimeMs..sentence.endTimeMs
+        val index = sentences.indexOf(sentence)
+        if (sentence.endTimeMs > sentence.startTimeMs) {
+            currentPositionMs in sentence.startTimeMs..sentence.endTimeMs
+        } else {
+            val nextStart = sentences.getOrNull(index + 1)?.startTimeMs ?: Long.MAX_VALUE
+            currentPositionMs in sentence.startTimeMs until nextStart
+        }
     }
 
+    val headerOffset = if (isProcessing || isFailed || isSkipped) 1 else 0
+
     LaunchedEffect(activeIndex) {
-        if (activeIndex >= 0 && !listState.isScrollInProgress) {
-            listState.animateScrollToItem(activeIndex)
+        if (activeIndex >= 0) {
+            listState.animateScrollToItem(activeIndex + headerOffset)
         }
     }
 
@@ -1163,12 +1201,20 @@ private fun TranscriptBubbleItem(
                         fontWeight = FontWeight.Bold,
                         color = AccentGold,
                     )
-                    Text(
-                        text = formatTimeMs(sentence.startTimeMs),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = ParchmentCream.copy(alpha = 0.65f),
-                        fontFamily = VcrOsdMono,
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = AccentGold.copy(alpha = 0.15f),
+                        modifier = Modifier.clickable(onClick = onClick),
+                    ) {
+                        Text(
+                            text = formatTimeMs(sentence.startTimeMs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AccentGold,
+                            fontFamily = VcrOsdMono,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1198,11 +1244,20 @@ private fun TranscriptBubbleItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MutedSand.copy(alpha = 0.5f),
                 )
-                Text(
-                    text = formatTimeMs(sentence.startTimeMs),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MutedSand.copy(alpha = 0.4f),
-                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = ParchmentCream.copy(alpha = 0.08f),
+                    modifier = Modifier.clickable(onClick = onClick),
+                ) {
+                    Text(
+                        text = formatTimeMs(sentence.startTimeMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ParchmentCream.copy(alpha = 0.7f),
+                        fontFamily = VcrOsdMono,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -1218,10 +1273,13 @@ private fun TranscriptBubbleItem(
 /**
  * Docked audio playback component fixed to the bottom of the screen.
  * Houses the active chapter pill, waveform scrubber, time counters, and squircle controls.
+ *
+ * @param peaks Normalized (0..1) waveform amplitude peaks; empty for remote-only audio.
  */
 @Composable
 private fun AudioPlaybackDock(
     state: AudioPlaybackState,
+    peaks: FloatArray,
     chapters: List<ChapterMarker>,
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
@@ -1230,12 +1288,17 @@ private fun AudioPlaybackDock(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background,
+        color = Color(0xFF181614),
         tonalElevation = 6.dp,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFF22201C), Color(0xFF171512)),
+                    )
+                )
                 .padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -1292,6 +1355,7 @@ private fun AudioPlaybackDock(
             // Waveform Scrubber with Chapter Notches and Red Playhead Needle (Edge-to-edge)
             WaveformScrubberBar(
                 currentPositionMs = state.currentPositionMs,
+                peaks = peaks,
                 durationMs = state.durationMs,
                 chapters = chapters,
                 onSeekTo = onSeekTo,
@@ -1342,12 +1406,13 @@ private fun AudioPlaybackDock(
                     CanvasReplay15Icon(tint = ParchmentCream)
                 }
 
-                // 2. Center Play / Pause Squircle Button (Colorized, Square)
+                // 2. Center Play / Pause Squircle Button (Colorized, Square with Tactile LED)
                 SquircleActionButton(
                     onClick = onTogglePlayPause,
                     containerColor = AccentGold,
                     contentColor = TextInk,
                     borderColor = AccentGold,
+                    showActiveLed = state.isPlaying,
                     modifier = Modifier.size(56.dp),
                 ) {
                     if (state.isLoading) {
@@ -1380,7 +1445,7 @@ private fun AudioPlaybackDock(
 }
 
 /**
- * Tactile squircle button with smooth 18dp corner radius.
+ * Tactile squircle button with smooth 18dp corner radius and active LED dot.
  */
 @Composable
 private fun SquircleActionButton(
@@ -1389,8 +1454,18 @@ private fun SquircleActionButton(
     contentColor: Color,
     modifier: Modifier = Modifier,
     borderColor: Color? = null,
+    showActiveLed: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val ledDotColor by animateColorAsState(
+        targetValue = if (showActiveLed) Color(0xFFFFAB00) else Color(0xFF1B1833).copy(alpha = 0.25f),
+        label = "dockLedDotColorAnimation",
+    )
+    val ledBorderColor by animateColorAsState(
+        targetValue = if (showActiveLed) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.18f),
+        label = "dockLedBorderColorAnimation",
+    )
+
     Surface(
         onClick = onClick,
         modifier = modifier.clip(RoundedCornerShape(18.dp)),
@@ -1405,6 +1480,17 @@ private fun SquircleActionButton(
             contentAlignment = Alignment.Center,
         ) {
             content()
+
+            // Tactile LED dot indicator in top-right corner
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(ledDotColor)
+                    .border(BorderStroke(0.5.dp, ledBorderColor), CircleShape),
+            )
         }
     }
 }
@@ -1412,10 +1498,13 @@ private fun SquircleActionButton(
 /**
  * Interactive waveform scrubber with vertical bars, chapter divider tick marks,
  * and a red scrubber pin indicator matching Image 2.
+ *
+ * @param peaks Normalized (0..1) amplitude peaks; when empty a synthetic profile is drawn.
  */
 @Composable
 private fun WaveformScrubberBar(
     currentPositionMs: Long,
+    peaks: FloatArray,
     durationMs: Long,
     chapters: List<ChapterMarker>,
     onSeekTo: (Long) -> Unit,
@@ -1485,8 +1574,12 @@ private fun WaveformScrubberBar(
                 val x = i * (barWidth + barSpacing) + barWidth / 2f
 
                 // Deterministic waveform profile
-                val sineFactor = (sin(i * 0.28) * 0.45 + 0.55).toFloat()
-                val heightRatio = (sineFactor * 0.85f + (i % 3) * 0.08f).coerceIn(0.2f, 0.98f)
+                val heightRatio = if (peaks.isNotEmpty()) {
+                    peaks[(i * peaks.size / totalBars).coerceAtMost(peaks.lastIndex)].coerceIn(0.08f, 1f)
+                } else {
+                    val sineFactor = (sin(i * 0.28) * 0.45 + 0.55).toFloat()
+                    (sineFactor * 0.85f + (i % 3) * 0.08f).coerceIn(0.2f, 0.98f)
+                }
                 val barHeight = totalHeight * 0.90f * heightRatio
 
                 val isPastPlayhead = barProgress <= progress
@@ -1607,7 +1700,7 @@ private fun ChaptersBottomSheetContent(
                             Text(
                                 text = formatTimeMs(chapter.startTimeMs),
                                 fontFamily = VcrOsdMono,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isActive) AccentGold else MutedSand,
                             )

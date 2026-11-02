@@ -176,8 +176,7 @@ fun AuthScreen(
                         if (registering) R.string.auth_register_title else R.string.auth_sign_in_title
                     ),
                     style = MaterialTheme.typography.displayLarge.copy(
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 32.sp,
                     ),
                     color = ParchmentCream,
                     textAlign = TextAlign.Center,

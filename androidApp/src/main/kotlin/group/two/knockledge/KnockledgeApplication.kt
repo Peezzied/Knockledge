@@ -50,6 +50,7 @@ class KnockledgeApplication : Application() {
         )
         component = DaggerKnockledgeComponent.factory().create(this)
         graph = component.graph()
+        DebugSeeder.start(this, component.data(), scope)
         getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
