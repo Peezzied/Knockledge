@@ -164,7 +164,7 @@ object KnockledgeModule {
     @Provides
     fun modelFiles(store: ModelStore): ModelFiles = store
 
-    /** Offline Whisper recognition through ONNX Runtime. */
+    /** Offline Whisper recognition through whisper.cpp (JNI). */
     @Provides
     fun speechEngine(): SpeechEngine = AndroidSpeechEngine
 
