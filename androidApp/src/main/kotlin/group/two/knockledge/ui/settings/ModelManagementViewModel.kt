@@ -40,6 +40,11 @@ class ModelManagementViewModel(
         ai?.selectSummaryModel(id)
     }
 
+    /** Delegates transcription model selection to [AiControls]. */
+    override fun selectTranscriptionModel(id: String) {
+        ai?.selectTranscriptionModel(id)
+    }
+
     /** Starts the model download via [ModelProvider]. */
     override fun downloadModels() {
         models?.download()
@@ -59,7 +64,6 @@ class ModelManagementViewModel(
 
     companion object {
         /** Assumed installed ids when no entries are reported, for example on desktop previews. */
-        private val DEFAULT_INSTALLED_MODEL_IDS =
-            setOf(ModelCatalog.whisper.id, ModelCatalog.vad.id, ModelCatalog.qwen2b.id)
+        private val DEFAULT_INSTALLED_MODEL_IDS = ModelCatalog.all.map { it.id }.toSet()
     }
 }

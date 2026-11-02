@@ -69,7 +69,7 @@ class ModelManagementViewModelTest {
 
         assertTrue(vm.modelsState.value.ready)
         assertEquals(
-            setOf(ModelCatalog.whisper.id, ModelCatalog.vad.id, ModelCatalog.qwen2b.id),
+            ModelCatalog.all.map { it.id }.toSet(),
             vm.installedModelIds.value,
         )
     }

@@ -90,7 +90,7 @@ class OnDeviceTranscriber(
     /** Returns the cleaned transcript, or an empty string when the Whisper file is not installed. */
     suspend fun transcribe(pcm: ShortArray): String =
         withContext(Dispatchers.Default) {
-            val model = files.pathOf(ModelCatalog.whisper)
+            val model = files.pathOf(files.transcriberModel)
                 ?: return@withContext ""
             val lang = language()
             val raw = engine.transcribe(
@@ -128,7 +128,7 @@ class OnDeviceSummarizer(
     override suspend fun summarize(request: SummaryRequest): Summary = withContext(Dispatchers.Default) {
         val language = outputLanguage()
         // Without Whisper there is no transcript to summarize: show the setup placeholder.
-        if (files.pathOf(ModelCatalog.whisper) == null) return@withContext fallback.summarize(request)
+        if (files.pathOf(files.transcriberModel) == null) return@withContext fallback.summarize(request)
         if (request.filteredTranscript.isBlank()) return@withContext Summaries.nothingHeard(request.redactedCount, language)
 
         if (selected() == SummaryModelIds.APPLE && system != null) {

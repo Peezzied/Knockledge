@@ -149,7 +149,12 @@ object KnockledgeModule {
     @Provides
     @Singleton
     fun modelStore(storage: ModelStorage, downloader: ModelDownloader, settings: AppSettings): ModelStore =
-        ModelStore(storage, downloader) { settings.summaryModel.value }
+        ModelStore(
+            storage,
+            downloader,
+            selectedSummaryModel = { settings.summaryModel.value },
+            selectedTranscriptionModel = { settings.transcriptionLocalModel.value },
+        )
 
     /** The same store, exposed through its read-only provider interface. */
     @Provides

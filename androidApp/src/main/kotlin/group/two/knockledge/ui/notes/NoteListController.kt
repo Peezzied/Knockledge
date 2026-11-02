@@ -10,6 +10,12 @@ interface NoteListController {
     /** Notes owned by the active user, newest first as emitted by the repository. */
     val notes: StateFlow<List<Note>>
 
+    /** True when pulling or syncing Firestore data for notes. */
+    val isSyncing: StateFlow<Boolean>
+
+    /** Triggers a cloud sync/pull for pending notes. */
+    fun syncPending()
+
     /** Deletes the note with [id] for the active user. */
     fun deleteNote(id: String)
 

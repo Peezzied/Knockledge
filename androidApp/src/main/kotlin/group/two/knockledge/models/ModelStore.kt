@@ -41,6 +41,9 @@ interface ModelFiles {
     /** The selected Qwen file, or null when the selected summarizer is not a downloaded model (Apple). */
     val summarizerModel: ModelFile?
 
+    /** The selected Whisper file; always one of [ModelCatalog.whisperModels]. */
+    val transcriberModel: ModelFile
+
     /** True when every file the current settings need is installed. */
     val isReady: Boolean
 }
@@ -66,6 +69,8 @@ class ModelStore(
     private val downloader: ModelDownloader,
     /** Current summary model id from settings (a Qwen id, or Apple). */
     private val selectedSummaryModel: () -> String,
+    /** Current transcription model id from settings (a Whisper id). */
+    private val selectedTranscriptionModel: () -> String = { ModelCatalog.whisper.id },
 ) : ModelProvider, ModelFiles {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -74,8 +79,11 @@ class ModelStore(
     override val summarizerModel: ModelFile?
         get() = ModelCatalog.qwenById(selectedSummaryModel())
 
+    override val transcriberModel: ModelFile
+        get() = ModelCatalog.whisperById(selectedTranscriptionModel())
+
     private val files: List<ModelFile>
-        get() = listOfNotNull(ModelCatalog.whisper, ModelCatalog.vad, summarizerModel)
+        get() = listOfNotNull(transcriberModel, ModelCatalog.vad, summarizerModel)
 
     private val totalBytes: Long
         get() = files.sumOf { it.approxBytes }
@@ -85,7 +93,7 @@ class ModelStore(
 
     override val description: String
         get() {
-            val parts = listOfNotNull("Whisper turbo", summarizerModel?.label).joinToString(" + ")
+            val parts = listOfNotNull(transcriberModel.label, summarizerModel?.label).joinToString(" + ")
             val tenths = (totalBytes + 50_000_000L) / 100_000_000L
             return "$parts (about ${tenths / 10}.${tenths % 10} GB)"
         }

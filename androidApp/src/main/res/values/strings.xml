@@ -81,22 +81,41 @@
     <string name="settings_ai_toggle_label">AI processing</string>
     <string name="settings_ai_toggle_desc">Off by default to conserve battery and data.</string>
     <string name="settings_execution_header">AI EXECUTION MODE</string>
+    <string name="settings_execution_auto">Auto</string>
     <string name="settings_execution_cloud">Cloud</string>
     <string name="settings_execution_offline">Offline</string>
     <string name="settings_transcription_models_menu_title">Offline Transcription Model</string>
     <string name="settings_transcription_models_menu_subtitle">Manage on-device speech-to-text model (Whisper)</string>
     <string name="settings_transcription_models_sheet_title">Offline Transcription Model</string>
     <string name="settings_transcription_models_sheet_desc">Select and download on-device Whisper model for offline speech transcription.</string>
+    <string name="settings_transcription_models_filipino_hint">Tiny, base and small models are much weaker at Filipino.</string>
+    <string name="settings_transcription_model_desc">Speech-to-Text Model · Offline Transcription</string>
     <string name="settings_summary_models_menu_title">Offline Summarization Models</string>
     <string name="settings_summary_models_menu_subtitle">Manage on-device summary models (Qwen 2B / 0.8B)</string>
     <string name="settings_summary_models_sheet_title">Offline Summarization Models</string>
     <string name="settings_summary_models_sheet_desc">Choose and download on-device Qwen models for offline executive summaries.</string>
+    <string name="settings_summary_qwen2b_desc">High-Quality Summary Model (Tagalog &amp; English)</string>
+    <string name="settings_summary_qwen08b_desc">Lightweight Summary Model · Faster &amp; Light</string>
+    <string name="settings_sheet_done">Done</string>
     <string name="settings_download_all_models">Download Required Models</string>
     <string name="settings_download_model_btn">Download (%1$s)</string>
     <string name="settings_model_installed_badge">INSTALLED</string>
     <string name="settings_model_downloading_status">Downloading (%1$d%%)…</string>
     <string name="settings_model_active_badge">ACTIVE MODEL</string>
     <string name="settings_model_remove_action">Remove</string>
+    <string name="settings_audio_header">AUDIO</string>
+    <string name="settings_audio_min_save_label">Minimum saved audio</string>
+    <string name="settings_audio_min_save_value">%1$d sec</string>
+    <string name="settings_audio_input_label">Input source</string>
+    <string name="settings_input_mic">Microphone</string>
+    <string name="settings_input_mic_device">Mic + phone audio</string>
+    <string name="settings_language_header">LANGUAGE</string>
+    <string name="settings_language_transcription_label">Speech language</string>
+    <string name="settings_language_summary_label">Recap language</string>
+    <string name="settings_lang_filipino">Filipino</string>
+    <string name="settings_lang_english">English</string>
+    <string name="settings_lang_auto_detect">Auto-detect</string>
+    <string name="settings_lang_match_speakers">Match speakers</string>
     <string name="settings_sensitivity_header">GESTURE SENSITIVITY</string>
     <string name="settings_sensitivity_low">Low</string>
     <string name="settings_sensitivity_medium">Medium</string>
@@ -144,8 +163,7 @@
     <string name="auth_google_logo_cd">Google logo</string>
 
     <!-- AI Processing & Settings -->
-    <string name="auto_ai_processing_title">Automatic AI Processing</string>
-    <string name="auto_ai_processing_desc">Automatically transcribe and summarize saved audio buffer recordings.</string>
+
     <string name="process_ai_notes">Process AI Notes</string>
     <string name="processing_transcribing">Transcribing audio…</string>
     <string name="processing_summarizing">Summarizing transcript…</string>
@@ -191,10 +209,13 @@
     <string name="key_takeaway_label">Key Takeaway</string>
     <string name="badge_unprocessed">UNPROCESSED</string>
     <string name="badge_processing">PROCESSING</string>
+    <string name="badge_syncing">SYNCING</string>
     <string name="badge_saved">SAVED</string>
     <string name="badge_failed">FAILED</string>
     <string name="badge_skipped">SKIPPED</string>
     <string name="badge_length_error">LENGTH ERROR</string>
+    <string name="syncing_firestore_data">Syncing with Firestore…</string>
+    <string name="pull_to_refresh_sync">Pull to sync recordings</string>
     <string name="tab_summary">Summary</string>
     <string name="rewind_15s">Rewind 15 seconds</string>
     <string name="forward_15s">Forward 15 seconds</string>

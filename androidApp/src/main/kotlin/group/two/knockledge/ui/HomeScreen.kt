@@ -71,6 +71,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -100,7 +101,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import group.two.knockledge.R
 import group.two.knockledge.audio.AudioPlaybackState
+import group.two.knockledge.core.audioBufferDir
+import group.two.knockledge.core.directorySizeBytes
+import group.two.knockledge.data.local.AudioFileStorage
 import group.two.knockledge.data.model.Note
+import group.two.knockledge.data.model.SyncStatus
 import group.two.knockledge.data.remote.GoogleIdTokenClient
 import group.two.knockledge.di.KnockledgeComponent
 import group.two.knockledge.pipeline.RewindStage
@@ -126,7 +131,9 @@ import group.two.knockledge.ui.theme.ObsidianMidnight
 import group.two.knockledge.ui.theme.OutlineVariant
 import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.WaveformTeal
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -552,31 +559,51 @@ fun NoteListItem(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = AccentGold.copy(alpha = 0.12f),
+                            color = when {
+                                isProcessingThisNote -> WaveformTeal.copy(alpha = 0.12f)
+                                note.syncStatus == SyncStatus.SYNCING -> WaveformTeal.copy(alpha = 0.12f)
+                                summary != null -> AccentGold.copy(alpha = 0.12f)
+                                else -> AccentGold.copy(alpha = 0.12f)
+                            },
                             border = BorderStroke(
                                 1.dp,
                                 when {
                                     isProcessingThisNote -> WaveformTeal.copy(alpha = 0.6f)
+                                    note.syncStatus == SyncStatus.SYNCING -> WaveformTeal.copy(alpha = 0.6f)
                                     summary != null -> AccentGold.copy(alpha = 0.35f)
                                     else -> OutlineVariant.copy(alpha = 0.3f)
                                 }
                             )
                         ) {
-                            Text(
-                                text = when {
-                                    isProcessingThisNote -> stringResource(R.string.badge_processing)
-                                    summary != null -> stringResource(R.string.badge_saved)
-                                    else -> stringResource(R.string.badge_unprocessed)
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = when {
-                                    isProcessingThisNote -> WaveformTeal
-                                    summary != null -> AccentGold
-                                    else -> ParchmentCream.copy(alpha = 0.65f)
-                                },
-                                fontWeight = FontWeight.Bold,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
+                            ) {
+                                if (note.syncStatus == SyncStatus.SYNCING) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(10.dp),
+                                        strokeWidth = 1.5.dp,
+                                        color = WaveformTeal
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                }
+                                Text(
+                                    text = when {
+                                        isProcessingThisNote -> stringResource(R.string.badge_processing)
+                                        note.syncStatus == SyncStatus.SYNCING -> stringResource(R.string.badge_syncing)
+                                        summary != null -> stringResource(R.string.badge_saved)
+                                        else -> stringResource(R.string.badge_unprocessed)
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = when {
+                                        isProcessingThisNote -> WaveformTeal
+                                        note.syncStatus == SyncStatus.SYNCING -> WaveformTeal
+                                        summary != null -> AccentGold
+                                        else -> ParchmentCream.copy(alpha = 0.65f)
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
                         }
                     }
                 }
@@ -1093,6 +1120,8 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
     isRecording: Boolean = false,
+    isSyncing: Boolean = false,
+    onRefreshSync: () -> Unit = {},
     onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
     onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
 ) {
@@ -1147,14 +1176,26 @@ fun HomeScreen(
                         .height(56.dp),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        modifier = Modifier.size(44.dp),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SettingsGearIcon(
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(28.dp),
-                        )
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = WaveformTeal,
+                            )
+                        }
+                        IconButton(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier.size(44.dp),
+                        ) {
+                            SettingsGearIcon(
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(28.dp),
+                            )
+                        }
                     }
                 }
 
@@ -1195,6 +1236,8 @@ fun HomeScreen(
             onSelectNote = onSelectNote,
             onTogglePlayPause = onTogglePlayPause,
             onProcessNote = onProcessNote,
+            isSyncing = isSyncing,
+            onRefreshSync = onRefreshSync,
             lazyListState = lazyListState,
             onTogglePlayNote = onTogglePlayNote,
             onSeekToPosition = onSeekToPosition,
@@ -1216,6 +1259,8 @@ fun HomeRecordingsContent(
     onTogglePlayPause: () -> Unit,
     onProcessNote: (String) -> Unit,
     modifier: Modifier = Modifier,
+    isSyncing: Boolean = false,
+    onRefreshSync: () -> Unit = {},
     lazyListState: LazyListState = rememberLazyListState(),
     onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
     onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
@@ -1273,6 +1318,37 @@ fun HomeRecordingsContent(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            if (isSyncing) {
+                item(key = "syncing_indicator") {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFF1B1916),
+                        border = BorderStroke(1.dp, WaveformTeal.copy(alpha = 0.45f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = WaveformTeal,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.syncing_firestore_data),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = WaveformTeal,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
             }
 
             if (filteredNotes.isEmpty()) {
@@ -1409,6 +1485,7 @@ fun LiveTestAppShell(
             NoteListViewModel(dataGraph.notes, activeUserId)
         }
         val notes by noteListViewModel.notes.collectAsState()
+        val isSyncing by noteListViewModel.isSyncing.collectAsState()
 
         var selectedNoteId by remember { mutableStateOf<String?>(null) }
         val selectedNote = notes.firstOrNull { it.id == selectedNoteId }
@@ -1466,6 +1543,8 @@ fun LiveTestAppShell(
                         selectedNote = selectedNote,
                         playbackState = playbackState,
                         processingUiState = processingUiState,
+                        isSyncing = isSyncing,
+                        onRefreshSync = noteListViewModel::syncPending,
                         onSelectNote = { note ->
                             selectedNoteId = note.id
                             playbackViewModel.loadNote(note)
@@ -1624,6 +1703,14 @@ fun LiveTestAppShell(
                 ) {
                     val modelsState by modelManagementViewModel.modelsState.collectAsState()
                     val installedModelIds by modelManagementViewModel.installedModelIds.collectAsState()
+                    val storageConsumptionMb by produceState(0f, recordingUiState.isRecording, notes.size) {
+                        value = withContext(Dispatchers.IO) {
+                            directorySizeBytes(
+                                audioBufferDir(context.cacheDir),
+                                AudioFileStorage.audioDir(context),
+                            ) / 1_000_000f
+                        }
+                    }
 
                     Surface(
                         modifier = Modifier.fillMaxSize(),
@@ -1640,6 +1727,11 @@ fun LiveTestAppShell(
                                 settingsViewModel.setTranscriptionMode(mode)
                                 settingsViewModel.setComprehensionMode(mode)
                             },
+                            onMinAudioSaveChanged = settingsViewModel::setMinAudioSaveSeconds,
+                            onInputSourceChanged = settingsViewModel::setInputSource,
+                            onTranscriptionLanguageChanged = settingsViewModel::setTranscriptionLanguage,
+                            onSummaryLanguageChanged = settingsViewModel::setSummaryLanguage,
+                            onTranscriptionModelChanged = modelManagementViewModel::selectTranscriptionModel,
                             onRemoteSyncChanged = settingsViewModel::setRemoteSyncEnabled,
                             onSyncNow = {
                                 authState.user?.uid?.let { uid ->
@@ -1663,6 +1755,7 @@ fun LiveTestAppShell(
                             downloadingModelId = if (modelsState.downloading) modelsState.current else null,
                             onSignOut = authViewModel::signOut,
                             onNavigateToHome = { navController.popBackStack() },
+                            storageConsumptionMb = storageConsumptionMb,
                             isSessionRunning = recordingUiState.isRecording,
                             onPurgeSession = { recordingViewModel.stopSession() },
                         )

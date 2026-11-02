@@ -93,6 +93,10 @@ import group.two.knockledge.ai.AiControls
 import group.two.knockledge.core.RewindPolicy
 import group.two.knockledge.models.ModelCatalog
 import group.two.knockledge.models.ModelFile
+import group.two.knockledge.settings.AppSettings
+import group.two.knockledge.settings.InputSources
+import group.two.knockledge.settings.SummaryLanguages
+import group.two.knockledge.settings.TranscriptionLanguages
 import group.two.knockledge.sensor.AndroidKnockGestureDetector
 import group.two.knockledge.sensor.KnockGestureDetector
 import group.two.knockledge.ui.BackArrowNavIcon
@@ -125,6 +129,12 @@ import kotlinx.coroutines.launch
 /** Maximum scale reduction applied to the account card as it is covered. */
 private const val ACCOUNT_CARD_MIN_SCALE_DELTA = 0.08f
 
+/** Cached-audio size, in MB, at which the storage bar reads as full. */
+private const val STORAGE_BAR_MAX_MB = 512f
+
+/** Minimum bar fill so a non-empty cache still shows a sliver. */
+private const val STORAGE_BAR_MIN_FILL = 0.1f
+
 /**
  * Settings screen built according to the Knockledge Figma design.
  * Features M3 container components, obsidian & brass styling, and interactive controls including
@@ -137,6 +147,11 @@ private const val ACCOUNT_CARD_MIN_SCALE_DELTA = 0.08f
  * @param onBufferDurationChanged Callback when buffer duration is adjusted.
  * @param onKnockThresholdChanged Callback when knock sensitivity is modified.
  * @param onExecutionModeChanged Callback when AI execution mode is changed ("online", "local", "auto").
+ * @param onMinAudioSaveChanged Callback when the minimum saved-audio duration is adjusted.
+ * @param onInputSourceChanged Callback when the audio input source is changed.
+ * @param onTranscriptionLanguageChanged Callback when the speech transcription language is changed.
+ * @param onSummaryLanguageChanged Callback when the recap summary language is changed.
+ * @param onTranscriptionModelChanged Callback when the selected offline transcription model is changed.
  * @param onRemoteSyncChanged Callback when remote database synchronization is toggled.
  * @param onSyncNow Callback when manual synchronization is requested.
  * @param onSummaryModelChanged Callback when selected offline summary model is changed.
@@ -162,16 +177,21 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     onExecutionModeChanged: (String) -> Unit = {},
+    onMinAudioSaveChanged: (Int) -> Unit = {},
+    onInputSourceChanged: (String) -> Unit = {},
+    onTranscriptionLanguageChanged: (String) -> Unit = {},
+    onSummaryLanguageChanged: (String) -> Unit = {},
+    onTranscriptionModelChanged: (String) -> Unit = {},
     onRemoteSyncChanged: (Boolean) -> Unit = {},
     onSyncNow: () -> Unit = {},
     onSummaryModelChanged: (String) -> Unit = {},
     onDownloadModel: (ModelFile) -> Unit = {},
     onRemoveModel: (ModelFile) -> Unit = {},
-    installedModelIds: Set<String> = setOf("whisper", "vad", "qwen2b"),
+    installedModelIds: Set<String> = emptySet(),
     downloadProgress: Float? = null,
     downloadingModelId: String? = null,
     onNavigateToHome: (() -> Unit)? = null,
-    storageConsumptionMb: Float = 128f,
+    storageConsumptionMb: Float = 0f,
     isSessionRunning: Boolean = false,
     onPurgeSession: () -> Unit = {},
 ) {
@@ -332,6 +352,14 @@ fun SettingsScreen(
                         bufferDurationSeconds = settingsUiState.bufferDurationSeconds,
                         onBufferDurationChanged = onBufferDurationChanged,
                     )
+
+                    // 2b. Audio Card (minimum save duration + input source)
+                    AudioCard(
+                        minAudioSaveSeconds = settingsUiState.minAudioSaveSeconds,
+                        inputSource = settingsUiState.inputSource,
+                        onMinAudioSaveChanged = onMinAudioSaveChanged,
+                        onInputSourceChanged = onInputSourceChanged,
+                    )
     
                     // 3. Storage Consumption Card
                     StorageConsumptionCard(
@@ -347,8 +375,10 @@ fun SettingsScreen(
                     // 5. AI Execution Mode Card with split transcription & summarization bottom sheets
                     AiExecutionModeCard(
                         currentMode = settingsUiState.transcriptionMode,
+                        transcriptionModel = settingsUiState.transcriptionLocalModel,
                         summaryModel = settingsUiState.summaryModel,
                         onExecutionModeChanged = onExecutionModeChanged,
+                        onTranscriptionModelChanged = onTranscriptionModelChanged,
                         onSummaryModelChanged = onSummaryModelChanged,
                         onDownloadModel = onDownloadModel,
                         onRemoveModel = onRemoveModel,
@@ -356,7 +386,15 @@ fun SettingsScreen(
                         downloadProgress = downloadProgress,
                         downloadingModelId = downloadingModelId,
                     )
-    
+
+                    // 5b. Language Card (transcription + summary languages)
+                    LanguageCard(
+                        transcriptionLanguage = settingsUiState.transcriptionLanguage,
+                        summaryLanguage = settingsUiState.summaryLanguage,
+                        onTranscriptionLanguageChanged = onTranscriptionLanguageChanged,
+                        onSummaryLanguageChanged = onSummaryLanguageChanged,
+                    )
+
                     // 6. Gesture Sensitivity Card
                     GestureSensitivityCard(
                         knockSensorThreshold = settingsUiState.knockSensorThreshold,
@@ -447,6 +485,131 @@ private fun BufferDurationCard(
 }
 
 /**
+ * Card for audio capture settings: the minimum duration saved on a knock and the input source.
+ */
+@Composable
+private fun AudioCard(
+    minAudioSaveSeconds: Int,
+    inputSource: String,
+    onMinAudioSaveChanged: (Int) -> Unit,
+    onInputSourceChanged: (String) -> Unit,
+) {
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_audio_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.settings_audio_min_save_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = ParchmentCream,
+            )
+            Text(
+                text = stringResource(R.string.settings_audio_min_save_value, minAudioSaveSeconds),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedSand,
+            )
+        }
+
+        Slider(
+            value = minAudioSaveSeconds.toFloat(),
+            onValueChange = { onMinAudioSaveChanged(it.toInt()) },
+            valueRange = AppSettings.MIN_AUDIO_SAVE_MIN.toFloat()..AppSettings.MIN_AUDIO_SAVE_MAX.toFloat(),
+            steps = AppSettings.MIN_AUDIO_SAVE_MAX - AppSettings.MIN_AUDIO_SAVE_MIN - 1,
+            colors = SliderDefaults.colors(
+                thumbColor = AccentGold,
+                activeTrackColor = AccentGold,
+                inactiveTrackColor = BurnishedBronze,
+            ),
+        )
+
+        Text(
+            text = stringResource(R.string.settings_audio_input_label),
+            style = MaterialTheme.typography.labelLarge,
+            color = ParchmentCream,
+        )
+
+        val inputIds = listOf(InputSources.MIC, InputSources.MIC_AND_DEVICE)
+        SegmentedButtonGroup(
+            options = listOf(
+                stringResource(R.string.settings_input_mic),
+                stringResource(R.string.settings_input_mic_device),
+            ),
+            selectedIndex = inputIds.indexOf(inputSource).coerceAtLeast(0),
+            onOptionSelected = { index -> onInputSourceChanged(inputIds[index]) },
+        )
+    }
+}
+
+/**
+ * Card for language settings: the spoken language Whisper transcribes and the recap language.
+ */
+@Composable
+private fun LanguageCard(
+    transcriptionLanguage: String,
+    summaryLanguage: String,
+    onTranscriptionLanguageChanged: (String) -> Unit,
+    onSummaryLanguageChanged: (String) -> Unit,
+) {
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_language_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        Text(
+            text = stringResource(R.string.settings_language_transcription_label),
+            style = MaterialTheme.typography.labelLarge,
+            color = ParchmentCream,
+        )
+
+        val transcriptionIds = listOf(
+            TranscriptionLanguages.FILIPINO,
+            TranscriptionLanguages.ENGLISH,
+            TranscriptionLanguages.AUTO,
+        )
+        SegmentedButtonGroup(
+            options = listOf(
+                stringResource(R.string.settings_lang_filipino),
+                stringResource(R.string.settings_lang_english),
+                stringResource(R.string.settings_lang_auto_detect),
+            ),
+            selectedIndex = transcriptionIds.indexOf(transcriptionLanguage).coerceAtLeast(0),
+            onOptionSelected = { index -> onTranscriptionLanguageChanged(transcriptionIds[index]) },
+        )
+
+        Text(
+            text = stringResource(R.string.settings_language_summary_label),
+            style = MaterialTheme.typography.labelLarge,
+            color = ParchmentCream,
+        )
+
+        val summaryIds = listOf(
+            SummaryLanguages.AUTO,
+            SummaryLanguages.FILIPINO,
+            SummaryLanguages.ENGLISH,
+        )
+        SegmentedButtonGroup(
+            options = listOf(
+                stringResource(R.string.settings_lang_match_speakers),
+                stringResource(R.string.settings_lang_filipino),
+                stringResource(R.string.settings_lang_english),
+            ),
+            selectedIndex = summaryIds.indexOf(summaryLanguage).coerceAtLeast(0),
+            onOptionSelected = { index -> onSummaryLanguageChanged(summaryIds[index]) },
+        )
+    }
+}
+
+/**
  * Card displaying audio storage consumption statistics.
  */
 @Composable
@@ -479,7 +642,7 @@ private fun StorageConsumptionCard(
         }
 
         LinearProgressIndicator(
-            progress = { (storageConsumptionMb / 512f).coerceIn(0.1f, 1.0f) },
+            progress = { (storageConsumptionMb / STORAGE_BAR_MAX_MB).coerceIn(STORAGE_BAR_MIN_FILL, 1.0f) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(4.dp)
@@ -539,15 +702,17 @@ private fun AutomaticAiCard(
 }
 
 /**
- * Card for selecting AI execution mode (Cloud vs Offline) with two distinct menu items:
+ * Card for selecting AI execution mode (Auto, Cloud or Offline) with two distinct menu items:
  * one for offline transcription model selection (Whisper) and one for offline summarization model selection (Qwen).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AiExecutionModeCard(
     currentMode: String,
+    transcriptionModel: String,
     summaryModel: String,
     onExecutionModeChanged: (String) -> Unit,
+    onTranscriptionModelChanged: (String) -> Unit,
     onSummaryModelChanged: (String) -> Unit,
     onDownloadModel: (ModelFile) -> Unit,
     onRemoveModel: (ModelFile) -> Unit,
@@ -565,27 +730,21 @@ private fun AiExecutionModeCard(
             color = AccentGold,
         )
 
-        val isCloud = currentMode != "local"
-        val selectedIndex = if (isCloud) 0 else 1
+        val modes = listOf(AppSettings.MODE_AUTO, AppSettings.MODE_ONLINE, AppSettings.MODE_LOCAL)
         SegmentedButtonGroup(
             options = listOf(
+                stringResource(R.string.settings_execution_auto),
                 stringResource(R.string.settings_execution_cloud),
                 stringResource(R.string.settings_execution_offline),
             ),
-            selectedIndex = selectedIndex,
-            onOptionSelected = { index ->
-                if (index == 0) {
-                    onExecutionModeChanged("online")
-                } else {
-                    onExecutionModeChanged("local")
-                }
-            },
+            selectedIndex = modes.indexOf(currentMode).coerceAtLeast(0),
+            onOptionSelected = { index -> onExecutionModeChanged(modes[index]) },
         )
 
-        val isOffline = currentMode == "local" || currentMode == "offline"
+        val usesOfflineModels = currentMode == AppSettings.MODE_LOCAL || currentMode == AppSettings.MODE_AUTO
 
         AnimatedVisibility(
-            visible = isOffline,
+            visible = usesOfflineModels,
             enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(250)),
             exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200)),
         ) {
@@ -706,21 +865,28 @@ private fun AiExecutionModeCard(
 
                 HorizontalDivider(color = OutlineVariant)
 
-                val whisperFile = ModelCatalog.whisper
-                val isInstalled = installedModelIds.contains(whisperFile.id)
-                val isDownloading = downloadingModelId == whisperFile.id
+                ModelCatalog.whisperModels.forEach { file ->
+                    val isInstalled = installedModelIds.contains(file.id)
+                    val isDownloading = downloadingModelId == file.id
 
-                OfflineModelItem(
-                    modelFile = whisperFile,
-                    description = "Speech-to-Text Model · Offline Transcription",
-                    isInstalled = isInstalled,
-                    isDownloading = isDownloading,
-                    downloadProgress = if (isDownloading) downloadProgress else null,
-                    isSelectedSummaryModel = false,
-                    isSummaryOption = false,
-                    onSelect = {},
-                    onDownload = { onDownloadModel(whisperFile) },
-                    onRemove = { onRemoveModel(whisperFile) },
+                    OfflineModelItem(
+                        modelFile = file,
+                        description = stringResource(R.string.settings_transcription_model_desc),
+                        isInstalled = isInstalled,
+                        isDownloading = isDownloading,
+                        downloadProgress = if (isDownloading) downloadProgress else null,
+                        isSelected = transcriptionModel == file.id,
+                        selectable = true,
+                        onSelect = { onTranscriptionModelChanged(file.id) },
+                        onDownload = { onDownloadModel(file) },
+                        onRemove = { onRemoveModel(file) },
+                    )
+                }
+
+                Text(
+                    text = stringResource(R.string.settings_transcription_models_filipino_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MutedSand,
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -738,7 +904,7 @@ private fun AiExecutionModeCard(
                     ),
                 ) {
                     Text(
-                        text = "Done",
+                        text = stringResource(R.string.settings_sheet_done),
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
@@ -790,8 +956,8 @@ private fun AiExecutionModeCard(
                 HorizontalDivider(color = OutlineVariant)
 
                 val summaryModelList = listOf(
-                    ModelCatalog.qwen2b to "High-Quality Summary Model (Tagalog & English)",
-                    ModelCatalog.qwen08b to "Lightweight Summary Model · Faster & Light",
+                    ModelCatalog.qwen2b to stringResource(R.string.settings_summary_qwen2b_desc),
+                    ModelCatalog.qwen08b to stringResource(R.string.settings_summary_qwen08b_desc),
                 )
 
                 summaryModelList.forEach { (file, description) ->
@@ -805,8 +971,8 @@ private fun AiExecutionModeCard(
                         isInstalled = isInstalled,
                         isDownloading = isDownloading,
                         downloadProgress = if (isDownloading) downloadProgress else null,
-                        isSelectedSummaryModel = isSelectedSummary,
-                        isSummaryOption = true,
+                        isSelected = isSelectedSummary,
+                        selectable = true,
                         onSelect = { onSummaryModelChanged(file.id) },
                         onDownload = { onDownloadModel(file) },
                         onRemove = { onRemoveModel(file) },
@@ -828,7 +994,7 @@ private fun AiExecutionModeCard(
                     ),
                 ) {
                     Text(
-                        text = "Done",
+                        text = stringResource(R.string.settings_sheet_done),
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
@@ -847,8 +1013,8 @@ private fun OfflineModelItem(
     isInstalled: Boolean,
     isDownloading: Boolean,
     downloadProgress: Float?,
-    isSelectedSummaryModel: Boolean,
-    isSummaryOption: Boolean,
+    isSelected: Boolean,
+    selectable: Boolean,
     onSelect: () -> Unit,
     onDownload: () -> Unit,
     onRemove: () -> Unit,
@@ -861,11 +1027,11 @@ private fun OfflineModelItem(
             .clip(RoundedCornerShape(4.dp))
             .border(
                 width = 1.dp,
-                color = if (isSelectedSummaryModel) AntiqueBrass else OutlineVariant,
+                color = if (isSelected) AntiqueBrass else OutlineVariant,
                 shape = RoundedCornerShape(4.dp),
             )
-            .clickable(enabled = isSummaryOption, onClick = onSelect),
-        color = if (isSelectedSummaryModel) SurfaceContainerHigh else ObsidianMidnight,
+            .clickable(enabled = selectable, onClick = onSelect),
+        color = if (isSelected) SurfaceContainerHigh else ObsidianMidnight,
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -881,9 +1047,9 @@ private fun OfflineModelItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f),
                 ) {
-                    if (isSummaryOption) {
+                    if (selectable) {
                         RadioButton(
-                            selected = isSelectedSummaryModel,
+                            selected = isSelected,
                             onClick = onSelect,
                             colors = RadioButtonDefaults.colors(
                                 selectedColor = AccentGold,
@@ -925,7 +1091,7 @@ private fun OfflineModelItem(
                             border = BorderStroke(1.dp, AntiqueBrass),
                         ) {
                             Text(
-                                text = if (isSelectedSummaryModel) {
+                                text = if (isSelected) {
                                     stringResource(R.string.settings_model_active_badge)
                                 } else {
                                     stringResource(R.string.settings_model_installed_badge)
@@ -1593,8 +1759,12 @@ private fun SettingsScreenPreview() {
         SettingsScreen(
             settingsUiState = SettingsUiState(
                 bufferDurationSeconds = 300,
-                knockSensorThreshold = 4.0f,
-                transcriptionMode = "local",
+                minAudioSaveSeconds = 15,
+                inputSource = InputSources.MIC_AND_DEVICE,
+                transcriptionMode = AppSettings.MODE_LOCAL,
+                transcriptionLocalModel = ModelCatalog.whisper.id,
+                transcriptionLanguage = TranscriptionLanguages.FILIPINO,
+                summaryLanguage = SummaryLanguages.AUTO,
                 summaryModel = "qwen2b",
             ),
             authState = AuthState(),

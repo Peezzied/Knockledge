@@ -17,6 +17,9 @@ interface ModelManagementController {
     /** Saves [id] as the summary model and refreshes install state. */
     fun selectSummaryModel(id: String)
 
+    /** Saves [id] as the transcription model and refreshes install state. */
+    fun selectTranscriptionModel(id: String)
+
     /** Downloads the model files the current settings need. */
     fun downloadModels()
 

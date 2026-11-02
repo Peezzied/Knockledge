@@ -84,4 +84,28 @@ class NoteListViewModelTest {
 
         assertEquals(Triple("n1", userId, "Renamed"), repo.renamed)
     }
+
+    @Test
+    fun isSyncingDetectsNoteInSyncingStatus() {
+        val notes = listOf(note("n1", userId).copy(syncStatus = group.two.knockledge.data.model.SyncStatus.SYNCING))
+        val repo = FakeNotes(notes)
+        val vm = NoteListViewModel(repo, userId, scope)
+
+        kotlin.test.assertTrue(vm.isSyncing.value)
+    }
+
+    @Test
+    fun syncPendingTriggersRepositorySync() {
+        var syncedUser: String? = null
+        val repo = object : NoteRepository by FakeNotes(emptyList()) {
+            override suspend fun syncPending(userId: String) {
+                syncedUser = userId
+            }
+        }
+        val vm = NoteListViewModel(repo, userId, scope)
+
+        vm.syncPending()
+
+        assertEquals(userId, syncedUser)
+    }
 }

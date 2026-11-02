@@ -13,8 +13,8 @@ data class ModelFile(
  * Model choices, all free and from Hugging Face. Shared by Android and iOS, and mirrored in
  * scripts/models.sh.
  *
- * - Speech: Whisper large-v3-turbo (q5_0). The smallest Whisper that is usable for Tagalog
- *   and Taglish; small/base are much weaker on Filipino.
+ * - Speech: Whisper large-v3-turbo (q5_0) is the default; small/base/tiny (q5_1) are
+ *   smaller and faster but much weaker on Filipino.
  * - Voice activity: Silero VAD, so silence is skipped instead of hallucinated.
  * - Summary: Unsloth's Qwen3.5 GGUF, Q4_0 (fastest 4-bit on ARM CPUs, repacked by llama.cpp).
  *   2B on devices with about 4 GB RAM or more, 0.8B below that.
@@ -26,6 +26,30 @@ object ModelCatalog {
         url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
         fileName = "ggml-large-v3-turbo-q5_0.bin",
         approxBytes = 574_000_000L,
+    )
+
+    val whisperSmall = ModelFile(
+        id = "whisper_small",
+        label = "Whisper small",
+        url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-q5_1.bin",
+        fileName = "ggml-small-q5_1.bin",
+        approxBytes = 181_000_000L,
+    )
+
+    val whisperBase = ModelFile(
+        id = "whisper_base",
+        label = "Whisper base",
+        url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
+        fileName = "ggml-base-q5_1.bin",
+        approxBytes = 57_000_000L,
+    )
+
+    val whisperTiny = ModelFile(
+        id = "whisper_tiny",
+        label = "Whisper tiny",
+        url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin",
+        fileName = "ggml-tiny-q5_1.bin",
+        approxBytes = 31_000_000L,
     )
 
     val vad = ModelFile(
@@ -52,7 +76,8 @@ object ModelCatalog {
         approxBytes = 507_000_000L,
     )
 
-    val all: List<ModelFile> = listOf(whisper, vad, qwen2b, qwen08b)
+    val all: List<ModelFile> = listOf(whisper, whisperSmall, whisperBase, whisperTiny, vad, qwen2b, qwen08b)
+    val whisperModels: List<ModelFile> = listOf(whisper, whisperSmall, whisperBase, whisperTiny)
     val qwenModels: List<ModelFile> = listOf(qwen2b, qwen08b)
 
     /** A "4 GB" device reports roughly 3.5 to 3.8 GB of total memory. */
@@ -61,6 +86,9 @@ object ModelCatalog {
 
     /** Looks up a downloadable Qwen model by [ModelFile.id]; null for unknown ids and for Apple's model. */
     fun qwenById(id: String): ModelFile? = qwenModels.firstOrNull { it.id == id }
+
+    /** Looks up a Whisper model by [ModelFile.id]; unknown ids fall back to the default [whisper]. */
+    fun whisperById(id: String): ModelFile = whisperModels.firstOrNull { it.id == id } ?: whisper
 }
 
 /** Ids for the summary model setting. Qwen ids match [ModelFile.id]. */
