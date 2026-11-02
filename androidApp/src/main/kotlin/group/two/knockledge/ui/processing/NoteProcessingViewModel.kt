@@ -2,6 +2,7 @@ package group.two.knockledge.ui.processing
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import group.two.knockledge.ai.EngineError
 import group.two.knockledge.core.FileLocalAudioRingBuffer
 import group.two.knockledge.data.AuthRepository
 import group.two.knockledge.data.ChapterMarkerInput
@@ -38,6 +39,7 @@ class NoteProcessingViewModel(
     private val pipeline: RewindPipeline,
     private val notifier: AiNotificationNotifier = NoopAiNotificationNotifier,
     coroutineScope: CoroutineScope? = null,
+    private val appContext: android.content.Context? = null,
 ) : ViewModel(), NoteProcessingController {
 
     private val scope = coroutineScope ?: viewModelScope
@@ -180,11 +182,16 @@ class NoteProcessingViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
+                val message = if (t is EngineError && appContext != null) {
+                    EngineErrorMessages.message(appContext, t)
+                } else {
+                    t.message ?: "AI processing failed."
+                }
                 _processingState.update {
                     it.copy(
                         isProcessing = false,
                         state = NoteAiProcessingState.FAILED,
-                        errorMessage = t.message ?: "AI processing failed.",
+                        errorMessage = message,
                     )
                 }
             }

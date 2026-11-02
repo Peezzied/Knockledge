@@ -241,6 +241,45 @@ class NoteProcessingViewModelTest {
     }
 
     @Test
+    fun failedProcessingKeepsRecordingAndNoteIntact() = runBlocking {
+        val wav = createDummyWavFile()
+        val note = Note(
+            id = "note-fail",
+            userId = user.uid,
+            title = "Failing Note",
+            createdAtEpochMs = 1_000L,
+            updatedAtEpochMs = 1_000L,
+            audio = AudioMetadata(wav.absolutePath, null, 1_000L, 16_000, TriggerType.GESTURE),
+        )
+        val notesRepo = FakeNotes(note)
+        val authRepo = FakeAuth(user)
+        val pipeline = RewindPipeline(
+            transcriber = object : group.two.knockledge.pipeline.Transcriber {
+                override suspend fun transcribe(pcm: ShortArray, sampleRate: Int) =
+                    throw group.two.knockledge.ai.EngineError.ModelLoadFailed("whisper")
+            },
+            preprocessor = DefaultAudioPreprocessor(),
+            summarizer = PlaceholderSummarizer(),
+        )
+
+        val vm = NoteProcessingViewModel(
+            notes = notesRepo,
+            auth = authRepo,
+            pipeline = pipeline,
+            coroutineScope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        vm.processNote("note-fail")
+        awaitIdle(vm)
+
+        val state = vm.processingState.value
+        assertEquals(NoteAiProcessingState.FAILED, state.state)
+        assertTrue(wav.exists())
+        assertEquals(null, notesRepo.attachedTranscript)
+        assertEquals(null, notesRepo.attachedSummary)
+    }
+
+    @Test
     fun processNoteTriggersAiNotificationOnCompletion(): Unit = runBlocking {
         var notifiedTitle: String? = null
         var notifiedSummary: String? = null

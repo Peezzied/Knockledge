@@ -1,5 +1,6 @@
 package group.two.knockledge.pipeline
 
+import group.two.knockledge.ai.EngineError
 import group.two.knockledge.settings.AppSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeout
@@ -30,6 +31,14 @@ class CompositeSummarizer(
                 if (currentMode == AppSettings.MODE_ONLINE) throw e
             }
         }
-        return offline.summarize(request)
+        try {
+            return offline.summarize(request)
+        } catch (e: EngineError) {
+            // A broken local engine in Auto mode still has the cloud to fall back on.
+            if (currentMode == AppSettings.MODE_AUTO && isOnline()) {
+                return online.summarize(request)
+            }
+            throw e
+        }
     }
 }

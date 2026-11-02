@@ -1440,8 +1440,9 @@ fun LiveTestAppShell(
     val playbackViewModel = remember(component, audioPlayer) {
         AudioPlaybackViewModel(audioPlayer)
     }
+    val context = LocalContext.current
     val processingViewModel = remember(component, dataGraph, pipeline, aiNotifier) {
-        NoteProcessingViewModel(dataGraph.notes, dataGraph.auth, pipeline, aiNotifier)
+        NoteProcessingViewModel(dataGraph.notes, dataGraph.auth, pipeline, aiNotifier, appContext = context.applicationContext)
     }
     val settingsViewModel = remember(component, appSettings) {
         SettingsViewModel(appSettings)
@@ -1449,7 +1450,6 @@ fun LiveTestAppShell(
     val modelManagementViewModel = remember(component, graph) {
         ModelManagementViewModel(graph.models, graph.ai)
     }
-    val context = LocalContext.current
     val authViewModel = remember(component, dataGraph, context) {
         AuthViewModel(dataGraph.auth, googleToken = {
             val appContext = context.applicationContext

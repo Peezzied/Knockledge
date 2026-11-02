@@ -1,5 +1,6 @@
 package group.two.knockledge.pipeline
 
+import group.two.knockledge.ai.EngineError
 import group.two.knockledge.audio.AudioConditioner
 import group.two.knockledge.settings.AppSettings
 import kotlinx.coroutines.CancellationException
@@ -40,6 +41,14 @@ class CompositeTranscriber(
                 if (currentMode == AppSettings.MODE_ONLINE) throw e
             }
         }
-        return offline.process(segment)
+        try {
+            return offline.process(segment)
+        } catch (e: EngineError) {
+            // A broken local engine in Auto mode still has the cloud to fall back on.
+            if (currentMode == AppSettings.MODE_AUTO && isOnline()) {
+                return online.process(segment)
+            }
+            throw e
+        }
     }
 }
