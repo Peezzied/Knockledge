@@ -39,6 +39,7 @@ import kotlin.time.ExperimentalTime
 /** Immutable snapshot of the session, published to the UI via [KnockledgeController.state]. */
 data class KnockledgeState(
     val isRunning: Boolean = false,
+    val isPaused: Boolean = false,
     /** True while the accelerometer knock detector is listening. */
     val isGestureActive: Boolean = false,
     /** Audio cached on disk since Start, capped at the configured window. Every Rewind uses all of it. */
@@ -48,6 +49,8 @@ data class KnockledgeState(
     val pendingRewinds: Int = 0,
     /** Current input level, 0..1 on a decibel scale. Drives the VU meter. */
     val level: Float = 0f,
+    /** Live frequency band levels, 0..1 each, low to high frequency. Drives the waveform bars. */
+    val bands: List<Float> = emptyList(),
     /** Which part of a rewind is running (transcribing, then summarizing). */
     val stage: RewindStage? = null,
     /** Live input diagnostics: device, loudness, and any OS-level problem. */
@@ -68,7 +71,7 @@ data class KnockledgeState(
 
     /** Rewinds may overlap and may be tapped while others process. */
     val canRewind: Boolean
-        get() = isRunning && bufferedMillis >= minOf(minSaveMillis, windowMillis)
+        get() = (isRunning || isPaused) && bufferedMillis >= minOf(minSaveMillis, windowMillis)
 
     /** 0..1 progress toward unlocking Rewind. */
     val unlockProgress: Float
@@ -126,11 +129,13 @@ class KnockledgeController(
     ) { capState, pending, currentStage, coordErr, gestureActive ->
         KnockledgeState(
             isRunning = capState.isRunning,
+            isPaused = capState.isPaused,
             isGestureActive = gestureActive,
             bufferedMillis = capState.bufferedMillis,
             windowMillis = capState.windowMillis,
             pendingRewinds = pending,
             level = capState.level,
+            bands = capState.bands,
             stage = currentStage,
             inputLabel = capState.inputLabel,
             inputDb = capState.inputDb,
@@ -152,6 +157,13 @@ class KnockledgeController(
         isGestureListening.value = true
         _savedClipCount.value = 0
         hooks.onSessionStarted()
+    }
+
+    /** Pauses knock gesture detection and audio capture without clearing buffered audio. */
+    fun pause() {
+        knockDetector.stopListening()
+        isGestureListening.value = false
+        capturer.pause()
     }
 
     /** Stops knock gesture detection and audio capture. */

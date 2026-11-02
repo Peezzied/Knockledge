@@ -90,6 +90,27 @@ class KnockRecordingViewModelTest {
     }
 
     @Test
+    fun pauseAndResumeReflectInUiState() = runBlocking {
+        val controller = createController()
+        val settings = AppSettings(MemoryStore(), "m")
+        val vm = KnockRecordingViewModel(controller, settings)
+
+        awaitUi { !vm.uiState.value.isRecording }
+
+        vm.startSession()
+        awaitUi { vm.uiState.value.isRecording }
+        assertFalse(vm.uiState.value.isPaused)
+
+        vm.pauseSession()
+        awaitUi { vm.uiState.value.isPaused }
+        assertTrue(vm.uiState.value.isPaused)
+
+        vm.startSession()
+        awaitUi { vm.uiState.value.isRecording }
+        assertFalse(vm.uiState.value.isPaused)
+    }
+
+    @Test
     fun bufferDurationClampingPropagatesToUiState() = runBlocking {
         val controller = createController()
         val settings = AppSettings(MemoryStore(), "m")

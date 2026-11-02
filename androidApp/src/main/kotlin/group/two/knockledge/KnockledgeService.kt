@@ -12,6 +12,9 @@ import android.os.IBinder
 import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
+import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import group.two.knockledge.audio.DeviceAudioConsent
 import group.two.knockledge.core.formatDuration
 import group.two.knockledge.data.TriggerType
@@ -202,6 +205,8 @@ class KnockledgeService : Service() {
             else -> {
                 if (sessionStartMillis == 0L) {
                     sessionStartMillis = SystemClock.elapsedRealtime()
+                    postRecordingStartedNotification()
+                    Toast.makeText(this, R.string.toast_service_started, Toast.LENGTH_SHORT).show()
                 }
                 val state = controller.state.value
                 val first = build(
@@ -408,6 +413,7 @@ class KnockledgeService : Service() {
 
     /** Cancels the state collector and drops the projection flag. */
     override fun onDestroy() {
+        Toast.makeText(this, R.string.toast_service_stopped, Toast.LENGTH_SHORT).show()
         DeviceAudioConsent.foregroundReady = false
         sessionStartMillis = 0L
         cacheReplaced = false
@@ -416,9 +422,35 @@ class KnockledgeService : Service() {
         super.onDestroy()
     }
 
+    /** Posts a standalone alert notification when cache recording starts. */
+    private fun postRecordingStartedNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                START_CHANNEL_ID,
+                "Recording Start Alerts",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
+        val notification = NotificationCompat.Builder(this, START_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_knockledge)
+            .setContentTitle("Recording Started")
+            .setContentText("Cache recording has started.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+        val manager = NotificationManagerCompat.from(this)
+        try {
+            manager.notify(START_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {}
+    }
+
     private companion object {
         const val CHANNEL_ID = "knockledge_session"
+        const val START_CHANNEL_ID = "knockledge_start_alerts"
         const val NOTIFICATION_ID = 1
+        const val START_NOTIFICATION_ID = 2
         const val ACTION_STOP = "group.two.knockledge.action.STOP"
         const val ACTION_CONFIRM_STOP = "group.two.knockledge.action.CONFIRM_STOP"
         const val ACTION_CANCEL_STOP = "group.two.knockledge.action.CANCEL_STOP"

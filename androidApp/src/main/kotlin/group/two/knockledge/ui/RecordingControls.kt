@@ -1,10 +1,5 @@
 package group.two.knockledge.ui
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,8 +13,6 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
@@ -35,44 +28,23 @@ import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.TextInk
 import group.two.knockledge.ui.theme.WaveformPink
 import group.two.knockledge.ui.theme.WaveformTeal
-import kotlin.math.sin
 
 /**
- * Functional sound wave visualization with high-density thin vertical bars reacting live to [level].
+ * Functional sound wave visualization with high-density thin vertical bars reacting live to
+ * [bands]: each bar's height follows the live audio energy in one frequency region, low
+ * frequencies on the left. Falls back to [level] when no band data is available yet.
  */
 @Composable
 fun FunctionalWaveform(
     isRecording: Boolean,
     level: Float,
     modifier: Modifier = Modifier,
+    bands: List<Float> = emptyList(),
 ) {
     val barCount = 42
-    val baseEnvelope = remember {
-        FloatArray(barCount) { i ->
-            val x = i.toFloat() / (barCount - 1)
-            val p1 = kotlin.math.exp(-((x - 0.10f) / 0.04f) * ((x - 0.10f) / 0.04f)) * 0.95f
-            val p2 = kotlin.math.exp(-((x - 0.25f) / 0.05f) * ((x - 0.25f) / 0.05f)) * 0.75f
-            val p3 = kotlin.math.exp(-((x - 0.45f) / 0.06f) * ((x - 0.45f) / 0.06f)) * 0.65f
-            val p4 = kotlin.math.exp(-((x - 0.72f) / 0.08f) * ((x - 0.72f) / 0.08f)) * 1.00f
-            val p5 = kotlin.math.exp(-((x - 0.88f) / 0.05f) * ((x - 0.88f) / 0.05f)) * 0.60f
-            val ripple = kotlin.math.abs(sin(i * 0.85f)) * 0.22f
-            (0.08f + p1 + p2 + p3 + p4 + p5 + ripple).coerceIn(0.06f, 1.00f)
-        }
-    }
 
     val maxBarHeight = 180.dp
     val minBarHeight = 4.dp
-
-    val infiniteTransition = rememberInfiniteTransition(label = "waveform_phase")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "phase_angle",
-    )
 
     Canvas(
         modifier = modifier
@@ -91,10 +63,16 @@ fun FunctionalWaveform(
         for (i in 0 until barCount) {
             val x = spacingPx + i * (strokeWidthPx + spacingPx) + strokeWidthPx / 2f
             val targetHeightRatio = if (isRecording) {
-                val waveOffset = sin(phase + i * 0.35f)
-                val dynamicFactor = 0.35f + 0.65f * ((waveOffset + 1f) / 2f)
-                val activeVol = level.coerceIn(0.12f, 1.0f)
-                (baseEnvelope[i] * activeVol * dynamicFactor).coerceIn(0.05f, 1.0f)
+                val energy = if (bands.isNotEmpty()) {
+                    // Bar i samples the band list by linear interpolation across its range.
+                    val pos = i.toFloat() / (barCount - 1) * (bands.size - 1)
+                    val lo = pos.toInt().coerceIn(0, bands.size - 1)
+                    val hi = (lo + 1).coerceAtMost(bands.size - 1)
+                    bands[lo] + (bands[hi] - bands[lo]) * (pos - lo)
+                } else {
+                    level
+                }
+                energy.coerceIn(0.05f, 1.0f)
             } else {
                 0.05f
             }
@@ -149,6 +127,7 @@ fun RecordingControls(
         FunctionalWaveform(
             isRecording = state.isRecording,
             level = state.level,
+            bands = state.bands,
         )
 
         Text(
@@ -224,6 +203,7 @@ private fun RecordingControlsRecordingPreview() {
                 maxBufferSeconds = 300,
                 isGestureActive = true,
                 level = 0.65f,
+                bands = List(14) { 0.9f - it * 0.06f },
             ),
             onManualSave = {},
             onDurationChange = {},

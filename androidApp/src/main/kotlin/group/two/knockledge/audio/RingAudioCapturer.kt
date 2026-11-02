@@ -25,11 +25,14 @@ import kotlin.math.sqrt
 /** Live state emitted by [RingAudioCapturer]. */
 data class RingCaptureState(
     val isRunning: Boolean = false,
+    val isPaused: Boolean = false,
     /** Audio cached in the ring buffer, capped at the configured window. */
     val bufferedMillis: Long = 0L,
     val windowMillis: Long = RewindPolicy.WINDOW_MILLIS,
     /** Current input level, 0..1 on a decibel scale. Drives the VU meter. */
     val level: Float = 0f,
+    /** Live frequency band levels, 0..1 each, low to high frequency. Drives the waveform bars. */
+    val bands: List<Float> = emptyList(),
     /** Live input diagnostics: device, loudness, and any OS-level problem. */
     val inputLabel: String? = null,
     val inputDb: Int? = null,
@@ -54,6 +57,7 @@ class RingAudioCapturer(
     private var captureJob: Job? = null
     private var chunkCount = 0L
     private var level = 0f
+    private val bands = FloatArray(SpectrumBands.COUNT)
     private var lastDb = -120.0
     private var silentMillis = 0L
     private var silenceReported = false
@@ -75,7 +79,7 @@ class RingAudioCapturer(
     /** Starts capturing audio into the ring buffer. No-op when already running. */
     fun start() {
         if (captureJob?.isActive == true) return
-        _state.update { it.copy(isRunning = true) }
+        _state.update { it.copy(isRunning = true, isPaused = false) }
         silentMillis = 0L
         silenceReported = false
         captureJob = scope.launch {
@@ -97,6 +101,7 @@ class RingAudioCapturer(
                             withStatus.copy(
                                 bufferedMillis = buffer.bufferedMillis(),
                                 level = level,
+                                bands = bands.toList(),
                                 inputDb = lastDb.toInt(),
                             )
                         }
@@ -110,24 +115,49 @@ class RingAudioCapturer(
         }
     }
 
-    /** Stops capturing and clears the buffer. No-op when not running. */
-    fun stop() {
-        val job = captureJob ?: return
+    /** Pauses capturing audio without clearing the ring buffer. */
+    fun pause() {
+        val job = captureJob
         captureJob = null
         _state.update {
             it.copy(
                 isRunning = false,
-                bufferedMillis = 0L,
+                isPaused = true,
                 level = 0f,
+                bands = emptyList(),
                 inputLabel = null,
                 inputDb = null,
                 inputWarning = null,
             )
         }
         scope.launch {
-            job.cancelAndJoin()
+            job?.cancelAndJoin()
+            level = 0f
+            bands.fill(0f)
+        }
+    }
+
+    /** Stops capturing and clears the buffer. */
+    fun stop() {
+        val job = captureJob
+        captureJob = null
+        _state.update {
+            it.copy(
+                isRunning = false,
+                isPaused = false,
+                bufferedMillis = 0L,
+                level = 0f,
+                bands = emptyList(),
+                inputLabel = null,
+                inputDb = null,
+                inputWarning = null,
+            )
+        }
+        scope.launch {
+            job?.cancelAndJoin()
             buffer.clear()
             level = 0f
+            bands.fill(0f)
         }
     }
 
@@ -179,6 +209,10 @@ class RingAudioCapturer(
         val target = ((db - FLOOR_DB) / (CEIL_DB - FLOOR_DB)).toFloat().coerceIn(0f, 1f)
         // Rises instantly, falls back gently, like a meter with ballistics.
         level = if (target >= level) target else level * 0.6f + target * 0.4f
+        val targets = SpectrumBands.compute(chunk, RewindPolicy.SAMPLE_RATE)
+        for (i in bands.indices) {
+            bands[i] = if (targets[i] >= bands[i]) targets[i] else bands[i] * 0.6f + targets[i] * 0.4f
+        }
     }
 
     companion object {

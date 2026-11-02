@@ -18,6 +18,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -57,6 +61,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1056,9 +1061,8 @@ fun RecordFloatingActionButton(
                                 ),
                             )
                         }
-                        kotlinx.coroutines.delay(140L)
-                        onClick()
                         pullJob.join()
+                        onClick()
                     }
                 }
             },
@@ -1396,18 +1400,32 @@ fun LiveTestAppShell(
                 composable(
                     route = "home",
                     enterTransition = {
-                        (scaleIn(
-                            initialScale = 0.90f,
-                            transformOrigin = TransformOrigin(0.5f, 0.92f),
-                            animationSpec = tween(320, easing = FastOutSlowInEasing),
-                        ) + fadeIn(animationSpec = tween(320, easing = FastOutSlowInEasing)))
+                        scaleIn(
+                            initialScale = 0.92f,
+                            transformOrigin = TransformOrigin(0.5f, 0.5f),
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing))
                     },
                     exitTransition = {
-                        (scaleOut(
-                            targetScale = 0.90f,
-                            transformOrigin = TransformOrigin(0.5f, 0.92f),
-                            animationSpec = tween(280, easing = FastOutLinearInEasing),
-                        ) + fadeOut(animationSpec = tween(280, easing = FastOutLinearInEasing)))
+                        scaleOut(
+                            targetScale = 0.92f,
+                            transformOrigin = TransformOrigin(0.5f, 0.5f),
+                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                        ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    },
+                    popEnterTransition = {
+                        scaleIn(
+                            initialScale = 0.92f,
+                            transformOrigin = TransformOrigin(0.5f, 0.5f),
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing))
+                    },
+                    popExitTransition = {
+                        scaleOut(
+                            targetScale = 0.92f,
+                            transformOrigin = TransformOrigin(0.5f, 0.5f),
+                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                        ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
                     },
                 ) {
                     HomeScreen(
@@ -1439,6 +1457,7 @@ fun LiveTestAppShell(
                         onProcessNote = processingViewModel::processNote,
                         onManualSave = {
                             navController.navigate("record")
+
                         },
                         onNavigateToSettings = {
                             navController.navigate("settings")
@@ -1450,78 +1469,76 @@ fun LiveTestAppShell(
                 composable(
                     route = "record",
                     enterTransition = {
-                        if (recordingUiState.isRecording) {
-                            (scaleIn(
-                                initialScale = 0.02f,
-                                transformOrigin = TransformOrigin(0.5f, 0.92f),
-                                animationSpec = tween(
-                                    durationMillis = 420,
-                                    easing = CubicBezierEasing(0.12f, 0.8f, 0.15f, 1.0f),
-                                ),
-                            ) + fadeIn(
-                                animationSpec = tween(
-                                    durationMillis = 250,
-                                    easing = LinearEasing,
-                                ),
-                            ))
-                        } else {
-                            fadeIn(
-                                animationSpec = tween(
-                                    durationMillis = 200,
-                                    easing = LinearEasing,
-                                ),
-                            )
-                        }
+                        scaleIn(
+                            initialScale = 0.05f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(
+                                durationMillis = 380,
+                                easing = FastOutSlowInEasing,
+                            ),
+                        ) + fadeIn(
+                            animationSpec = tween(
+                                durationMillis = 250,
+                                easing = LinearEasing,
+                            ),
+                        )
                     },
                     exitTransition = {
-                        if (recordingUiState.isRecording) {
-                            (scaleOut(
-                                targetScale = 0.02f,
-                                transformOrigin = TransformOrigin(0.5f, 0.92f),
-                                animationSpec = tween(
-                                    durationMillis = 320,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            ) + fadeOut(
-                                animationSpec = tween(
-                                    durationMillis = 320,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            ))
-                        } else {
-                            fadeOut(
-                                animationSpec = tween(
-                                    durationMillis = 200,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            )
-                        }
+                        scaleOut(
+                            targetScale = 0.05f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(
+                                durationMillis = 350,
+                                easing = FastOutSlowInEasing,
+                            ),
+                        ) + fadeOut(
+                            animationSpec = tween(
+                                durationMillis = 300,
+                                easing = FastOutSlowInEasing,
+                            ),
+                        )
+                    },
+                    popEnterTransition = {
+                        scaleIn(
+                            initialScale = 0.05f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(
+                                durationMillis = 380,
+                                easing = FastOutSlowInEasing,
+                            ),
+                        ) + fadeIn(
+                            animationSpec = tween(
+                                durationMillis = 250,
+                                easing = LinearEasing,
+                            ),
+                        )
                     },
                     popExitTransition = {
-                        if (recordingUiState.isRecording) {
-                            (scaleOut(
-                                targetScale = 0.02f,
-                                transformOrigin = TransformOrigin(0.5f, 0.92f),
-                                animationSpec = tween(
-                                    durationMillis = 320,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            ) + fadeOut(
-                                animationSpec = tween(
-                                    durationMillis = 320,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            ))
-                        } else {
-                            fadeOut(
-                                animationSpec = tween(
-                                    durationMillis = 200,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            )
-                        }
+                        scaleOut(
+                            targetScale = 0.05f,
+                            transformOrigin = TransformOrigin(0.5f, 0.92f),
+                            animationSpec = tween(
+                                durationMillis = 350,
+                                easing = FastOutSlowInEasing,
+                            ),
+                        ) + fadeOut(
+                            animationSpec = tween(
+                                durationMillis = 300,
+                                easing = FastOutSlowInEasing,
+                            ),
+                        )
                     },
                 ) {
+                    LaunchedEffect(hasRecordAudioPermission) {
+                        if (!recordingUiState.isRecording && !recordingUiState.isPaused) {
+                            if (hasRecordAudioPermission) {
+                                recordingViewModel.startSession()
+                            } else {
+                                onRequestPermission()
+                            }
+                        }
+                    }
+
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
@@ -1538,7 +1555,33 @@ fun LiveTestAppShell(
                     }
                 }
 
-                composable("settings") {
+                composable(
+                    route = "settings",
+                    enterTransition = {
+                        slideInVertically(
+                            initialOffsetY = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing))
+                    },
+                    exitTransition = {
+                        slideOutVertically(
+                            targetOffsetY = { -it / 3 },
+                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                        ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    },
+                    popEnterTransition = {
+                        slideInVertically(
+                            initialOffsetY = { -it / 3 },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing))
+                    },
+                    popExitTransition = {
+                        slideOutVertically(
+                            targetOffsetY = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        )
+                    },
+                ) {
                     val modelsState by modelManagementViewModel.modelsState.collectAsState()
                     val installedModelIds by modelManagementViewModel.installedModelIds.collectAsState()
 
@@ -1581,10 +1624,30 @@ fun LiveTestAppShell(
 
                 composable(
                     route = "playback/{noteId}",
-                    enterTransition = { fadeIn(animationSpec = tween(250)) },
-                    exitTransition = { fadeOut(animationSpec = tween(250)) },
-                    popEnterTransition = { fadeIn(animationSpec = tween(250)) },
-                    popExitTransition = { fadeOut(animationSpec = tween(250)) },
+                    enterTransition = {
+                        slideInHorizontally(
+                            initialOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing))
+                    },
+                    exitTransition = {
+                        slideOutHorizontally(
+                            targetOffsetX = { -it / 3 },
+                            animationSpec = tween(300, easing = FastOutSlowInEasing),
+                        ) + fadeOut(animationSpec = tween(300, easing = FastOutSlowInEasing))
+                    },
+                    popEnterTransition = {
+                        slideInHorizontally(
+                            initialOffsetX = { -it / 3 },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        ) + fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing))
+                    },
+                    popExitTransition = {
+                        slideOutHorizontally(
+                            targetOffsetX = { it },
+                            animationSpec = tween(350, easing = FastOutSlowInEasing),
+                        )
+                    },
                 ) { backStackEntry ->
                     val noteId = backStackEntry.arguments?.getString("noteId")
                     val noteForPlayback = notes.firstOrNull { it.id == noteId } ?: selectedNote
@@ -1750,6 +1813,7 @@ private fun HomeScreenPreview() {
                             bufferedSeconds = 60,
                             maxBufferSeconds = 300,
                             level = 0.5f,
+                            bands = List(14) { 0.9f - it * 0.06f },
                         ),
                         hasRecordAudioPermission = true,
                         onStartSession = {},

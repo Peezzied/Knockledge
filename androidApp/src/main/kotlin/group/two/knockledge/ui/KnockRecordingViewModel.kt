@@ -25,17 +25,22 @@ class KnockRecordingViewModel(
         combine(controller.state, settings.bufferDurationSeconds, lastSaveSuccess) { rec, max, saved ->
             KnockRecordingUiState(
                 isRecording = rec.isRunning,
+                isPaused = rec.isPaused,
                 bufferedSeconds = (rec.bufferedMillis / 1000L).toInt(),
                 maxBufferSeconds = max,
                 isGestureActive = rec.isGestureActive,
                 isSavingSnapshot = rec.pendingRewinds > 0,
                 lastSaveSuccess = saved,
                 level = rec.level,
+                bands = rec.bands,
             )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, KnockRecordingUiState())
 
     /** Starts the recording session. */
     override fun startSession() = controller.start()
+
+    /** Pauses the recording session. */
+    override fun pauseSession() = controller.pause()
 
     /** Stops the recording session. */
     override fun stopSession() = controller.stop()

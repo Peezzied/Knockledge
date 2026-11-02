@@ -36,6 +36,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -52,7 +53,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -150,6 +153,7 @@ fun RecordScreen(
     recordingUiState: KnockRecordingUiState,
     hasRecordAudioPermission: Boolean,
     onStartSession: () -> Unit,
+    onPauseSession: () -> Unit = {},
     onStopSession: () -> Unit,
     onManualSave: () -> Unit,
     onRequestPermission: () -> Unit,
@@ -497,10 +501,10 @@ fun RecordScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
-                            text = if (recordingUiState.isRecording) {
-                                stringResource(R.string.recording_status_active)
-                            } else {
-                                stringResource(R.string.recording_status_inactive)
+                            text = when {
+                                recordingUiState.isRecording -> stringResource(R.string.recording_status_active)
+                                recordingUiState.isPaused -> stringResource(R.string.recording_status_paused)
+                                else -> stringResource(R.string.recording_status_inactive)
                             },
                             style = MaterialTheme.typography.titleMedium,
                             color = ParchmentCream,
@@ -533,6 +537,7 @@ fun RecordScreen(
                     FunctionalWaveform(
                         isRecording = recordingUiState.isRecording,
                         level = recordingUiState.level,
+                        bands = recordingUiState.bands,
                     )
 
                     Text(
@@ -546,33 +551,57 @@ fun RecordScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Dedicated Stop Recording Button when recording, or Start Session button
-                    if (recordingUiState.isRecording) {
-                        Button(
-                            onClick = onStopSession,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(4.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ObsidianMidnight,
-                                contentColor = ParchmentCream,
-                            ),
-                            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
-                                brush = Brush.horizontalGradient(listOf(AccentGold, AntiqueBrass)),
-                            ),
-                        ) {
-                            Text(text = stringResource(R.string.stop_session))
+                    // Action buttons: Pause when recording; Resume + Stop Icon when paused
+                    when {
+                        recordingUiState.isRecording -> {
+                            Button(
+                                onClick = onPauseSession,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(4.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ObsidianMidnight,
+                                    contentColor = ParchmentCream,
+                                ),
+                                border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
+                                    brush = Brush.horizontalGradient(listOf(AccentGold, AntiqueBrass)),
+                                ),
+                            ) {
+                                Text(text = stringResource(R.string.pause_session))
+                            }
                         }
-                    } else {
-                        Button(
-                            onClick = onStartSession,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(4.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AntiqueBrass,
-                                contentColor = TextInk,
-                            ),
-                        ) {
-                            Text(text = stringResource(R.string.start_session))
+                        recordingUiState.isPaused -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Button(
+                                    onClick = onStartSession,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(4.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AntiqueBrass,
+                                        contentColor = TextInk,
+                                    ),
+                                ) {
+                                    Text(text = stringResource(R.string.resume_session))
+                                }
+
+                                IconButton(
+                                    onClick = onStopSession,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(ObsidianMidnight, RoundedCornerShape(4.dp))
+                                        .border(
+                                            border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(
+                                                brush = Brush.horizontalGradient(listOf(AccentGold, AntiqueBrass)),
+                                            ),
+                                            shape = RoundedCornerShape(4.dp),
+                                        ),
+                                ) {
+                                    CanvasStopSquareIcon(tint = ParchmentCream)
+                                }
+                            }
                         }
                     }
 
@@ -730,7 +759,11 @@ fun RecordScreen(
                 onRequestPermission()
             }
         },
-        onStopSession = recordingViewModel::stopSession,
+        onPauseSession = recordingViewModel::pauseSession,
+        onStopSession = {
+            recordingViewModel.stopSession()
+            onNavigateToHome()
+        },
         onManualSave = recordingViewModel::triggerManualSave,
         onRequestPermission = onRequestPermission,
         onNavigateToHome = onNavigateToHome,
@@ -752,6 +785,7 @@ private fun RecordScreenPreview() {
                 bufferedSeconds = 222,
                 maxBufferSeconds = 300,
                 level = 0.65f,
+                bands = List(14) { 0.9f - it * 0.06f },
             ),
             hasRecordAudioPermission = true,
             onStartSession = {},
@@ -771,6 +805,20 @@ private fun RecordTopBarPreview() {
             bufferedSeconds = 222,
             autoAiEnabled = true,
             onAutoAiChanged = {},
+        )
+    }
+}
+
+@Composable
+private fun CanvasStopSquareIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(20.dp)) {
+        val w = size.width
+        val h = size.height
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(w * 0.25f, h * 0.25f),
+            size = Size(w * 0.5f, h * 0.5f),
+            cornerRadius = CornerRadius(2.dp.toPx()),
         )
     }
 }

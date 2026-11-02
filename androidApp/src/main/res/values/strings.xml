@@ -23,9 +23,12 @@
     <string name="grant_permission">Grant Permission</string>
     <string name="start_session">Start Session</string>
     <string name="stop_session">Stop Session</string>
+    <string name="pause_session">Pause Session</string>
+    <string name="resume_session">Resume Session</string>
     <string name="save_snapshot">Save Snapshot Now</string>
     <string name="recording_session_timer">SESSION %1$s</string>
     <string name="recording_status_active">Listening · cache active</string>
+    <string name="recording_status_paused">Session paused · tap Resume</string>
     <string name="recording_status_inactive">Session inactive · tap Start</string>
     <string name="recording_buffer_status">%1$s buffered / %2$s max</string>
     <string name="recording_gesture_status_active">Double-knock detection · Active</string>
@@ -180,6 +183,10 @@
     <string name="notification_action_cancel_stop">Keep recording</string>
     <string name="notification_confirm_stop_compact_keep">Keep</string>
     <string name="notification_confirm_stop_compact_stop">Stop</string>
+
+    <!-- Service Toast Messages -->
+    <string name="toast_service_started">Knockledge service started</string>
+    <string name="toast_service_stopped">Knockledge service stopped</string>
     <string name="key_takeaway_label">Key Takeaway</string>
     <string name="badge_unprocessed">UNPROCESSED</string>
     <string name="badge_processing">PROCESSING</string>

@@ -7,12 +7,15 @@ import kotlinx.coroutines.flow.StateFlow
  */
 data class KnockRecordingUiState(
     val isRecording: Boolean = false,
+    val isPaused: Boolean = false,
     val bufferedSeconds: Int = 0,
     val maxBufferSeconds: Int = 300,
     val isGestureActive: Boolean = false,
     val isSavingSnapshot: Boolean = false,
     val lastSaveSuccess: Boolean? = null,
     val level: Float = 0f,
+    /** Live frequency band levels, 0..1 each, low to high frequency. Drives the waveform bars. */
+    val bands: List<Float> = emptyList(),
 )
 
 /**
@@ -24,6 +27,9 @@ interface KnockRecordingController {
 
     /** Starts buffering audio and gesture detection. */
     fun startSession()
+
+    /** Pauses buffering audio and gesture detection. */
+    fun pauseSession()
 
     /** Stops buffering audio and gesture detection. */
     fun stopSession()
