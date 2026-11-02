@@ -60,7 +60,6 @@
     <string name="transcript_empty_subtitle">Process this audio note with AI to generate a full transcript with speaker labels.</string>
 
     <!-- Settings Tab -->
-    <string name="settings_tab_title">Settings</string>
     <string name="account_status_title">Account Profile</string>
     <string name="signed_in_as">Signed in as: %1$s</string>
     <string name="guest_mode">Guest Mode (Local storage only)</string>
@@ -81,6 +80,20 @@
     <string name="settings_execution_header">AI EXECUTION MODE</string>
     <string name="settings_execution_cloud">Cloud</string>
     <string name="settings_execution_offline">Offline</string>
+    <string name="settings_transcription_models_menu_title">Offline Transcription Model</string>
+    <string name="settings_transcription_models_menu_subtitle">Manage on-device speech-to-text model (Whisper)</string>
+    <string name="settings_transcription_models_sheet_title">Offline Transcription Model</string>
+    <string name="settings_transcription_models_sheet_desc">Select and download on-device Whisper model for offline speech transcription.</string>
+    <string name="settings_summary_models_menu_title">Offline Summarization Models</string>
+    <string name="settings_summary_models_menu_subtitle">Manage on-device summary models (Qwen 2B / 0.8B)</string>
+    <string name="settings_summary_models_sheet_title">Offline Summarization Models</string>
+    <string name="settings_summary_models_sheet_desc">Choose and download on-device Qwen models for offline executive summaries.</string>
+    <string name="settings_download_all_models">Download Required Models</string>
+    <string name="settings_download_model_btn">Download (%1$s)</string>
+    <string name="settings_model_installed_badge">INSTALLED</string>
+    <string name="settings_model_downloading_status">Downloading (%1$d%%)…</string>
+    <string name="settings_model_active_badge">ACTIVE MODEL</string>
+    <string name="settings_model_remove_action">Remove</string>
     <string name="settings_sensitivity_header">GESTURE SENSITIVITY</string>
     <string name="settings_sensitivity_low">Low</string>
     <string name="settings_sensitivity_medium">Medium</string>
@@ -91,6 +104,16 @@
     <string name="settings_gesture_test_detected">Knock detected!</string>
     <string name="settings_gesture_test_ready">READY</string>
     <string name="settings_gesture_test_triggered">DETECTED!</string>
+    <string name="settings_gesture_test_activate_switch">Activate Gesture Test</string>
+    <string name="settings_gesture_test_activate_desc">Enable gesture testing mode to verify double-knock detection.</string>
+    <string name="settings_gesture_test_confirm_title">Enable Gesture Test?</string>
+    <string name="settings_gesture_test_confirm_message">Enabling gesture test will stop and purge any active recording session. Do you want to proceed?</string>
+    <string name="settings_gesture_test_confirm_action">Enable &amp; Purge</string>
+    <string name="settings_gesture_test_cancel_action">Cancel</string>
+    <string name="settings_gesture_test_snackbar_knock">Knock detected!</string>
+    <string name="settings_gesture_test_inactive_prompt">Activate gesture test to begin</string>
+    <string name="settings_gesture_test_inactive_status">INACTIVE</string>
+    <string name="settings_gesture_test_active_status">ACTIVE</string>
     <string name="settings_account_header">ACTIVE ACCOUNT</string>
     <string name="settings_sync_label">Remote database sync</string>
 

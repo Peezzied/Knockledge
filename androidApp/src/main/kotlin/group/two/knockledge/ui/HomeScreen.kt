@@ -83,13 +83,15 @@ import group.two.knockledge.di.KnockledgeComponent
 import group.two.knockledge.pipeline.RewindStage
 import group.two.knockledge.ui.auth.AuthScreen
 import group.two.knockledge.ui.auth.AuthViewModel
+import group.two.knockledge.ui.notes.NoteListViewModel
 import group.two.knockledge.ui.playback.AudioPlaybackScreen
 import group.two.knockledge.ui.playback.AudioPlaybackViewModel
 import group.two.knockledge.ui.processing.NoteProcessingControls
 import group.two.knockledge.ui.processing.NoteProcessingUiState
 import group.two.knockledge.ui.processing.NoteProcessingViewModel
+import group.two.knockledge.ui.settings.ModelManagementViewModel
+import group.two.knockledge.ui.settings.SettingsScreen
 import group.two.knockledge.ui.settings.SettingsViewModel
-import group.two.knockledge.ui.tabs.SettingsTab
 import group.two.knockledge.ui.theme.AccentGold
 import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.BurnishedBronze
@@ -1058,8 +1060,6 @@ fun LiveTestAppShell(
     onRequestPermission: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scope = rememberCoroutineScope()
-
     val graph = remember(component) { component.graph() }
     val dataGraph = remember(component) { component.data() }
     val appSettings = remember(component) { component.appSettings() }
@@ -1078,6 +1078,9 @@ fun LiveTestAppShell(
     }
     val settingsViewModel = remember(component, appSettings) {
         SettingsViewModel(appSettings)
+    }
+    val modelManagementViewModel = remember(component, graph) {
+        ModelManagementViewModel(graph.models, graph.ai)
     }
     val context = LocalContext.current
     val authViewModel = remember(component, dataGraph, context) {
@@ -1111,8 +1114,10 @@ fun LiveTestAppShell(
         }
     } else {
         val activeUserId = currentUser.uid
-        val notesFlow = remember(dataGraph, activeUserId) { dataGraph.notes.observeNotes(activeUserId) }
-        val notes by notesFlow.collectAsState(initial = emptyList())
+        val noteListViewModel = remember(dataGraph, activeUserId) {
+            NoteListViewModel(dataGraph.notes, activeUserId)
+        }
+        val notes by noteListViewModel.notes.collectAsState()
 
         var selectedNoteId by remember { mutableStateOf<String?>(null) }
         val selectedNote = notes.firstOrNull { it.id == selectedNoteId }
@@ -1120,7 +1125,7 @@ fun LiveTestAppShell(
         val processingUiState by processingViewModel.processingState.collectAsState()
         val settingsUiState by settingsViewModel.uiState.collectAsState()
         val recordingUiState by recordingViewModel.uiState.collectAsState()
-        val autoAiEnabled by appSettings.autoAiProcessingEnabled.collectAsState()
+        val autoAiEnabled by settingsViewModel.autoAiEnabled.collectAsState()
 
         val navController = rememberNavController()
 
@@ -1161,11 +1166,7 @@ fun LiveTestAppShell(
                             playbackViewModel.loadNote(note)
                             navController.navigate("playback/${note.id}")
                         },
-                        onDeleteNote = { noteId ->
-                            scope.launch {
-                                dataGraph.notes.deleteNote(noteId, activeUserId)
-                            }
-                        },
+                        onDeleteNote = noteListViewModel::deleteNote,
                         onTogglePlayPause = playbackViewModel::togglePlayPause,
                         onProcessNote = processingViewModel::processNote,
                         onManualSave = {
@@ -1263,22 +1264,25 @@ fun LiveTestAppShell(
                             onRequestPermission = onRequestPermission,
                             onNavigateToHome = { navController.popBackStack() },
                             autoAiEnabled = autoAiEnabled,
-                            onAutoAiChanged = appSettings::setAutoAiProcessingEnabled,
+                            onAutoAiChanged = settingsViewModel::setAutoAiEnabled,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
                 }
 
                 composable("settings") {
+                    val modelsState by modelManagementViewModel.modelsState.collectAsState()
+                    val installedModelIds by modelManagementViewModel.installedModelIds.collectAsState()
+
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
                     ) {
-                        SettingsTab(
+                        SettingsScreen(
                             settingsUiState = settingsUiState,
                             authState = authState,
                             autoAiEnabled = autoAiEnabled,
-                            onAutoAiChanged = appSettings::setAutoAiProcessingEnabled,
+                            onAutoAiChanged = settingsViewModel::setAutoAiEnabled,
                             onBufferDurationChanged = settingsViewModel::setBufferDurationSeconds,
                             onKnockThresholdChanged = settingsViewModel::setKnockSensorThreshold,
                             onExecutionModeChanged = { mode ->
@@ -1286,8 +1290,23 @@ fun LiveTestAppShell(
                                 settingsViewModel.setComprehensionMode(mode)
                             },
                             onRemoteSyncChanged = settingsViewModel::setRemoteSyncEnabled,
+                            onSummaryModelChanged = { id ->
+                                modelManagementViewModel.selectSummaryModel(id)
+                                settingsViewModel.setSummaryModel(id)
+                            },
+                            onDownloadModel = { _ ->
+                                modelManagementViewModel.downloadModels()
+                            },
+                            onRemoveModel = { file ->
+                                modelManagementViewModel.removeModel(file)
+                            },
+                            installedModelIds = installedModelIds,
+                            downloadProgress = if (modelsState.downloading) modelsState.progress else null,
+                            downloadingModelId = if (modelsState.downloading) modelsState.current else null,
                             onSignOut = authViewModel::signOut,
                             onNavigateToHome = { navController.popBackStack() },
+                            isSessionRunning = recordingUiState.isRecording,
+                            onPurgeSession = { recordingViewModel.stopSession() },
                         )
                     }
                 }
@@ -1311,15 +1330,11 @@ fun LiveTestAppShell(
                                 playbackViewModel = playbackViewModel,
                                 onBackClick = { navController.popBackStack() },
                                 onDeleteClick = {
-                                    scope.launch {
-                                        dataGraph.notes.deleteNote(noteForPlayback.id, activeUserId)
-                                        navController.popBackStack()
-                                    }
+                                    noteListViewModel.deleteNote(noteForPlayback.id)
+                                    navController.popBackStack()
                                 },
                                 onRename = { newTitle ->
-                                    scope.launch {
-                                        dataGraph.notes.renameNote(noteForPlayback.id, activeUserId, newTitle)
-                                    }
+                                    noteListViewModel.renameNote(noteForPlayback.id, newTitle)
                                 },
                                 onProcessWithAi = {
                                     processingViewModel.processNote(noteForPlayback.id)

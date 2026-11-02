@@ -1,0 +1,1513 @@
+package group.two.knockledge.ui.settings
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import android.app.Application
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import group.two.knockledge.R
+import group.two.knockledge.ai.AiControls
+import group.two.knockledge.core.RewindPolicy
+import group.two.knockledge.models.ModelCatalog
+import group.two.knockledge.models.ModelFile
+import group.two.knockledge.sensor.AndroidKnockGestureDetector
+import group.two.knockledge.sensor.KnockGestureDetector
+import group.two.knockledge.ui.BackArrowNavIcon
+import group.two.knockledge.ui.auth.AuthState
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+import group.two.knockledge.ui.theme.AccentGold
+import group.two.knockledge.ui.theme.AntiqueBrass
+import group.two.knockledge.ui.theme.BurnishedBronze
+import group.two.knockledge.ui.theme.KiwiSoda
+import group.two.knockledge.ui.theme.KnockledgeTheme
+import group.two.knockledge.ui.theme.MutedSand
+import group.two.knockledge.ui.theme.ObsidianMidnight
+import group.two.knockledge.ui.theme.OutlineVariant
+import group.two.knockledge.ui.theme.ParchmentCream
+import group.two.knockledge.ui.theme.SurfaceContainerHigh
+import group.two.knockledge.ui.theme.SurfaceIndigo
+import group.two.knockledge.ui.theme.TextInk
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+/**
+ * Settings screen built according to the Knockledge Figma design.
+ * Features M3 container components, obsidian & brass styling, and interactive controls including
+ * selecting and downloading AI models for offline processing via separate transcription and summarization bottom sheets.
+ *
+ * @param settingsUiState Immutable settings UI state.
+ * @param authState Current user authentication state.
+ * @param autoAiEnabled Whether automatic AI processing is active.
+ * @param onAutoAiChanged Callback when automatic AI processing is toggled.
+ * @param onBufferDurationChanged Callback when buffer duration is adjusted.
+ * @param onKnockThresholdChanged Callback when knock sensitivity is modified.
+ * @param onExecutionModeChanged Callback when AI execution mode is changed ("online", "local", "auto").
+ * @param onRemoteSyncChanged Callback when remote database synchronization is toggled.
+ * @param onSummaryModelChanged Callback when selected offline summary model is changed.
+ * @param onDownloadModel Callback when downloading an offline model file.
+ * @param onRemoveModel Callback when removing an installed offline model file.
+ * @param installedModelIds Set of model IDs currently installed on-device.
+ * @param downloadProgress Download progress ratio (0.0 to 1.0) when downloading.
+ * @param downloadingModelId ID of model currently downloading, if any.
+ * @param onSignOut Callback when user initiates sign-out.
+ * @param onNavigateToHome Callback for back navigation, if applicable.
+ * @param storageConsumptionMb Cached audio storage consumption in MB.
+ * @param modifier Modifier for root container layout.
+ */
+@Composable
+fun SettingsScreen(
+    settingsUiState: SettingsUiState,
+    authState: AuthState,
+    autoAiEnabled: Boolean,
+    onAutoAiChanged: (Boolean) -> Unit,
+    onBufferDurationChanged: (Int) -> Unit,
+    onKnockThresholdChanged: (Float) -> Unit,
+    onSignOut: () -> Unit,
+    modifier: Modifier = Modifier,
+    onExecutionModeChanged: (String) -> Unit = {},
+    onRemoteSyncChanged: (Boolean) -> Unit = {},
+    onSummaryModelChanged: (String) -> Unit = {},
+    onDownloadModel: (ModelFile) -> Unit = {},
+    onRemoveModel: (ModelFile) -> Unit = {},
+    installedModelIds: Set<String> = setOf("whisper", "vad", "qwen2b"),
+    downloadProgress: Float? = null,
+    downloadingModelId: String? = null,
+    onNavigateToHome: (() -> Unit)? = null,
+    storageConsumptionMb: Float = 128f,
+    isSessionRunning: Boolean = false,
+    onPurgeSession: () -> Unit = {},
+) {
+    val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(ObsidianMidnight),
+    ) {
+        // Ambient Glow Highlights
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(AccentGold.copy(alpha = 0.15f), Color.Transparent),
+                    center = Offset(-100f, -100f),
+                    radius = 500f,
+                ),
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(AntiqueBrass.copy(alpha = 0.12f), Color.Transparent),
+                    center = Offset(size.width + 100f, size.height - 200f),
+                    radius = 600f,
+                ),
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+        ) {
+            // Top Bar
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            ) {
+                if (onNavigateToHome != null) {
+                    IconButton(
+                        onClick = onNavigateToHome,
+                    ) {
+                        BackArrowNavIcon(tint = ParchmentCream)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = ParchmentCream,
+                    fontSize = 32.sp,
+                )
+            }
+
+            // Cards Stack
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                // 1. Active Account & Sign Out Hero Card
+                ActiveAccountCard(
+                    authState = authState,
+                    remoteSyncEnabled = settingsUiState.remoteSyncEnabled,
+                    onRemoteSyncChanged = onRemoteSyncChanged,
+                    onSignOut = onSignOut,
+                )
+
+                // 2. Buffer Duration Card
+                BufferDurationCard(
+                    bufferDurationSeconds = settingsUiState.bufferDurationSeconds,
+                    onBufferDurationChanged = onBufferDurationChanged,
+                )
+
+                // 3. Storage Consumption Card
+                StorageConsumptionCard(
+                    storageConsumptionMb = storageConsumptionMb,
+                )
+
+                // 4. Automatic AI Processing Card
+                AutomaticAiCard(
+                    autoAiEnabled = autoAiEnabled,
+                    onAutoAiChanged = onAutoAiChanged,
+                )
+
+                // 5. AI Execution Mode Card with split transcription & summarization bottom sheets
+                AiExecutionModeCard(
+                    currentMode = settingsUiState.transcriptionMode,
+                    summaryModel = settingsUiState.summaryModel,
+                    onExecutionModeChanged = onExecutionModeChanged,
+                    onSummaryModelChanged = onSummaryModelChanged,
+                    onDownloadModel = onDownloadModel,
+                    onRemoveModel = onRemoveModel,
+                    installedModelIds = installedModelIds,
+                    downloadProgress = downloadProgress,
+                    downloadingModelId = downloadingModelId,
+                )
+
+                // 6. Gesture Sensitivity Card
+                GestureSensitivityCard(
+                    knockSensorThreshold = settingsUiState.knockSensorThreshold,
+                    onKnockThresholdChanged = onKnockThresholdChanged,
+                )
+
+                // 7. Gesture Test Card
+                GestureTestCard(
+                    isSessionRunning = isSessionRunning,
+                    onPurgeSession = onPurgeSession,
+                    onShowSnackbar = { msg ->
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(msg)
+                        }
+                    },
+                )
+            }
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+        ) { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = SurfaceContainerHigh,
+                contentColor = ParchmentCream,
+                actionColor = AccentGold,
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.border(1.dp, AntiqueBrass, RoundedCornerShape(4.dp)),
+            )
+        }
+    }
+}
+
+/**
+ * Card displaying and adjusting circular buffer window duration.
+ */
+@Composable
+private fun BufferDurationCard(
+    bufferDurationSeconds: Int,
+    onBufferDurationChanged: (Int) -> Unit,
+) {
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_buffer_duration_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val minutes = bufferDurationSeconds / 60
+            val text = if (minutes == 1) {
+                stringResource(R.string.settings_buffer_minute_kept, minutes)
+            } else {
+                stringResource(R.string.settings_buffer_minutes_kept, minutes)
+            }
+            Text(
+                text = text,
+                fontFamily = KiwiSoda,
+                fontSize = 18.sp,
+                color = ParchmentCream,
+            )
+
+            Text(
+                text = "1m  5m",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedSand,
+            )
+        }
+
+        Slider(
+            value = bufferDurationSeconds.toFloat(),
+            onValueChange = { onBufferDurationChanged(it.toInt()) },
+            valueRange = RewindPolicy.MIN_WINDOW_SECONDS.toFloat()..RewindPolicy.MAX_WINDOW_SECONDS.toFloat(),
+            steps = (RewindPolicy.MAX_WINDOW_SECONDS - RewindPolicy.MIN_WINDOW_SECONDS) / RewindPolicy.CHUNK_SECONDS - 1,
+            colors = SliderDefaults.colors(
+                thumbColor = AccentGold,
+                activeTrackColor = AccentGold,
+                inactiveTrackColor = BurnishedBronze,
+            ),
+        )
+    }
+}
+
+/**
+ * Card displaying audio storage consumption statistics.
+ */
+@Composable
+private fun StorageConsumptionCard(
+    storageConsumptionMb: Float,
+) {
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_storage_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${storageConsumptionMb.toInt()} MB",
+                fontFamily = KiwiSoda,
+                fontSize = 18.sp,
+                color = ParchmentCream,
+            )
+
+            Text(
+                text = stringResource(R.string.settings_storage_cached_audio),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedSand,
+            )
+        }
+
+        LinearProgressIndicator(
+            progress = { (storageConsumptionMb / 512f).coerceIn(0.1f, 1.0f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = AccentGold,
+            trackColor = BurnishedBronze,
+            strokeCap = StrokeCap.Round,
+        )
+    }
+}
+
+/**
+ * Card for toggling automatic background AI processing.
+ */
+@Composable
+private fun AutomaticAiCard(
+    autoAiEnabled: Boolean,
+    onAutoAiChanged: (Boolean) -> Unit,
+) {
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_ai_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.settings_ai_toggle_label),
+                fontFamily = KiwiSoda,
+                fontSize = 16.sp,
+                color = ParchmentCream,
+            )
+
+            Switch(
+                checked = autoAiEnabled,
+                onCheckedChange = onAutoAiChanged,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = TextInk,
+                    checkedTrackColor = AccentGold,
+                    uncheckedThumbColor = MutedSand,
+                    uncheckedTrackColor = SurfaceContainerHigh,
+                    uncheckedBorderColor = OutlineVariant,
+                ),
+            )
+        }
+
+        Text(
+            text = stringResource(R.string.settings_ai_toggle_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MutedSand,
+        )
+    }
+}
+
+/**
+ * Card for selecting AI execution mode (Cloud vs Offline) with two distinct menu items:
+ * one for offline transcription model selection (Whisper) and one for offline summarization model selection (Qwen).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiExecutionModeCard(
+    currentMode: String,
+    summaryModel: String,
+    onExecutionModeChanged: (String) -> Unit,
+    onSummaryModelChanged: (String) -> Unit,
+    onDownloadModel: (ModelFile) -> Unit,
+    onRemoveModel: (ModelFile) -> Unit,
+    installedModelIds: Set<String>,
+    downloadProgress: Float?,
+    downloadingModelId: String?,
+) {
+    var showTranscriptionSheet by remember { mutableStateOf(false) }
+    var showSummarySheet by remember { mutableStateOf(false) }
+
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_execution_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        val isCloud = currentMode != "local"
+        val selectedIndex = if (isCloud) 0 else 1
+        SegmentedButtonGroup(
+            options = listOf(
+                stringResource(R.string.settings_execution_cloud),
+                stringResource(R.string.settings_execution_offline),
+            ),
+            selectedIndex = selectedIndex,
+            onOptionSelected = { index ->
+                if (index == 0) {
+                    onExecutionModeChanged("online")
+                } else {
+                    onExecutionModeChanged("local")
+                }
+            },
+        )
+
+        val isOffline = currentMode == "local" || currentMode == "offline"
+
+        AnimatedVisibility(
+            visible = isOffline,
+            enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(250)),
+            exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200)),
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = OutlineVariant,
+                )
+
+                // Menu Item 1: Offline Transcription Model (Whisper)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { showTranscriptionSheet = true }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_transcription_models_menu_title),
+                            fontFamily = KiwiSoda,
+                            fontSize = 16.sp,
+                            color = ParchmentCream,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.settings_transcription_models_menu_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MutedSand,
+                        )
+                    }
+
+                    CanvasChevronRightIcon(
+                        tint = AccentGold,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = OutlineVariant.copy(alpha = 0.5f),
+                )
+
+                // Menu Item 2: Offline Summarization Models (Qwen 2B / 0.8B)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { showSummarySheet = true }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_summary_models_menu_title),
+                            fontFamily = KiwiSoda,
+                            fontSize = 16.sp,
+                            color = ParchmentCream,
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.settings_summary_models_menu_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MutedSand,
+                        )
+                    }
+
+                    CanvasChevronRightIcon(
+                        tint = AccentGold,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    // Modal Bottom Sheet 1: Offline Transcription Model (Whisper)
+    if (showTranscriptionSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        ModalBottomSheet(
+            onDismissRequest = { showTranscriptionSheet = false },
+            sheetState = sheetState,
+            containerColor = SurfaceIndigo,
+            contentColor = ParchmentCream,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(AccentGold.copy(alpha = 0.5f)),
+                )
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.settings_transcription_models_sheet_title),
+                        fontFamily = KiwiSoda,
+                        fontSize = 22.sp,
+                        color = ParchmentCream,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.settings_transcription_models_sheet_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MutedSand,
+                    )
+                }
+
+                HorizontalDivider(color = OutlineVariant)
+
+                val whisperFile = ModelCatalog.whisper
+                val isInstalled = installedModelIds.contains(whisperFile.id)
+                val isDownloading = downloadingModelId == whisperFile.id
+
+                OfflineModelItem(
+                    modelFile = whisperFile,
+                    description = "Speech-to-Text Model · Offline Transcription",
+                    isInstalled = isInstalled,
+                    isDownloading = isDownloading,
+                    downloadProgress = if (isDownloading) downloadProgress else null,
+                    isSelectedSummaryModel = false,
+                    isSummaryOption = false,
+                    onSelect = {},
+                    onDownload = { onDownloadModel(whisperFile) },
+                    onRemove = { onRemoveModel(whisperFile) },
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { showTranscriptionSheet = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, AntiqueBrass),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = ObsidianMidnight,
+                        contentColor = ParchmentCream,
+                    ),
+                ) {
+                    Text(
+                        text = "Done",
+                        fontFamily = KiwiSoda,
+                        fontSize = 16.sp,
+                    )
+                }
+            }
+        }
+    }
+
+    // Modal Bottom Sheet 2: Offline Summarization Models (Qwen 2B / 0.8B)
+    if (showSummarySheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+        ModalBottomSheet(
+            onDismissRequest = { showSummarySheet = false },
+            sheetState = sheetState,
+            containerColor = SurfaceIndigo,
+            contentColor = ParchmentCream,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(AccentGold.copy(alpha = 0.5f)),
+                )
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.settings_summary_models_sheet_title),
+                        fontFamily = KiwiSoda,
+                        fontSize = 22.sp,
+                        color = ParchmentCream,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.settings_summary_models_sheet_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MutedSand,
+                    )
+                }
+
+                HorizontalDivider(color = OutlineVariant)
+
+                val summaryModelList = listOf(
+                    ModelCatalog.qwen2b to "High-Quality Summary Model (Tagalog & English)",
+                    ModelCatalog.qwen08b to "Lightweight Summary Model · Faster & Light",
+                )
+
+                summaryModelList.forEach { (file, description) ->
+                    val isInstalled = installedModelIds.contains(file.id)
+                    val isDownloading = downloadingModelId == file.id
+                    val isSelectedSummary = summaryModel == file.id
+
+                    OfflineModelItem(
+                        modelFile = file,
+                        description = description,
+                        isInstalled = isInstalled,
+                        isDownloading = isDownloading,
+                        downloadProgress = if (isDownloading) downloadProgress else null,
+                        isSelectedSummaryModel = isSelectedSummary,
+                        isSummaryOption = true,
+                        onSelect = { onSummaryModelChanged(file.id) },
+                        onDownload = { onDownloadModel(file) },
+                        onRemove = { onRemoveModel(file) },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { showSummarySheet = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    border = BorderStroke(1.dp, AntiqueBrass),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = ObsidianMidnight,
+                        contentColor = ParchmentCream,
+                    ),
+                ) {
+                    Text(
+                        text = "Done",
+                        fontFamily = KiwiSoda,
+                        fontSize = 16.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Item component for an individual offline AI model with selection, download, and status indicators.
+ */
+@Composable
+private fun OfflineModelItem(
+    modelFile: ModelFile,
+    description: String,
+    isInstalled: Boolean,
+    isDownloading: Boolean,
+    downloadProgress: Float?,
+    isSelectedSummaryModel: Boolean,
+    isSummaryOption: Boolean,
+    onSelect: () -> Unit,
+    onDownload: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val sizeText = AiControls.gigabytes(modelFile.approxBytes)
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .border(
+                width = 1.dp,
+                color = if (isSelectedSummaryModel) AntiqueBrass else OutlineVariant,
+                shape = RoundedCornerShape(4.dp),
+            )
+            .clickable(enabled = isSummaryOption, onClick = onSelect),
+        color = if (isSelectedSummaryModel) SurfaceContainerHigh else ObsidianMidnight,
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (isSummaryOption) {
+                        RadioButton(
+                            selected = isSelectedSummaryModel,
+                            onClick = onSelect,
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = AccentGold,
+                                unselectedColor = MutedSand,
+                            ),
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = modelFile.label,
+                            fontFamily = KiwiSoda,
+                            fontSize = 15.sp,
+                            color = ParchmentCream,
+                        )
+                        Text(
+                            text = "$description · $sizeText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MutedSand,
+                            fontSize = 11.sp,
+                        )
+                    }
+                }
+
+                // Status Badge or Download/Remove Button
+                if (isDownloading) {
+                    val percent = ((downloadProgress ?: 0f) * 100).toInt()
+                    Text(
+                        text = stringResource(R.string.settings_model_downloading_status, percent),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AccentGold,
+                    )
+                } else if (isInstalled) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Surface(
+                            color = AntiqueBrass.copy(alpha = 0.2f),
+                            shape = CircleShape,
+                            border = BorderStroke(1.dp, AntiqueBrass),
+                        ) {
+                            Text(
+                                text = if (isSelectedSummaryModel) {
+                                    stringResource(R.string.settings_model_active_badge)
+                                } else {
+                                    stringResource(R.string.settings_model_installed_badge)
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AccentGold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onRemove,
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            CanvasTrashIcon(tint = MutedSand)
+                        }
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onDownload,
+                        modifier = Modifier.height(32.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, AntiqueBrass),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = ParchmentCream,
+                        ),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_download_model_btn, sizeText),
+                            fontFamily = KiwiSoda,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+            }
+
+            if (isDownloading) {
+                LinearProgressIndicator(
+                    progress = { downloadProgress ?: 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.5.dp)),
+                    color = AccentGold,
+                    trackColor = BurnishedBronze,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Card for selecting gesture accelerometer sensitivity threshold.
+ */
+@Composable
+private fun GestureSensitivityCard(
+    knockSensorThreshold: Float,
+    onKnockThresholdChanged: (Float) -> Unit,
+) {
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_sensitivity_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        val isLow = knockSensorThreshold >= 5.0f
+        val isHigh = knockSensorThreshold <= 2.5f
+        val selectedIndex = when {
+            isLow -> 0
+            isHigh -> 2
+            else -> 1
+        }
+
+        SegmentedButtonGroup(
+            options = listOf(
+                stringResource(R.string.settings_sensitivity_low),
+                stringResource(R.string.settings_sensitivity_medium),
+                stringResource(R.string.settings_sensitivity_high),
+            ),
+            selectedIndex = selectedIndex,
+            onOptionSelected = { index ->
+                when (index) {
+                    0 -> onKnockThresholdChanged(6.0f)
+                    1 -> onKnockThresholdChanged(4.0f)
+                    2 -> onKnockThresholdChanged(2.0f)
+                }
+            },
+        )
+    }
+}
+
+/**
+ * Interactive gesture testing card supporting physical accelerometer detection and simulated double knock taps.
+ */
+@Composable
+private fun GestureTestCard(
+    isSessionRunning: Boolean,
+    onPurgeSession: () -> Unit,
+    onShowSnackbar: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var isGestureTestActive by remember { mutableStateOf(false) }
+    var showConfirmationDialog by remember { mutableStateOf(false) }
+    var isTriggered by remember { mutableStateOf(false) }
+
+    val knockDetector: KnockGestureDetector = remember {
+        val app = context.applicationContext as? Application
+        AndroidKnockGestureDetector(app)
+    }
+
+    LaunchedEffect(isTriggered) {
+        if (isTriggered) {
+            delay(1500)
+            isTriggered = false
+        }
+    }
+
+    val knockSnackbarMsg = stringResource(R.string.settings_gesture_test_snackbar_knock)
+    val handleKnock: () -> Unit = remember(knockSnackbarMsg, onShowSnackbar) {
+        {
+            isTriggered = true
+            onShowSnackbar(knockSnackbarMsg)
+        }
+    }
+
+    DisposableEffect(isGestureTestActive) {
+        if (isGestureTestActive) {
+            knockDetector.startListening {
+                coroutineScope.launch {
+                    handleKnock()
+                }
+            }
+        } else {
+            knockDetector.stopListening()
+        }
+        onDispose {
+            knockDetector.stopListening()
+        }
+    }
+
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_gesture_test_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+
+        // Activation Switch Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    if (isGestureTestActive) {
+                        isGestureTestActive = false
+                    } else {
+                        showConfirmationDialog = true
+                    }
+                },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_gesture_test_activate_switch),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ParchmentCream,
+                )
+                Text(
+                    text = stringResource(R.string.settings_gesture_test_activate_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MutedSand,
+                )
+            }
+            Switch(
+                checked = isGestureTestActive,
+                onCheckedChange = { checked ->
+                    if (checked) {
+                        showConfirmationDialog = true
+                    } else {
+                        isGestureTestActive = false
+                    }
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = ObsidianMidnight,
+                    checkedTrackColor = AccentGold,
+                    uncheckedThumbColor = MutedSand,
+                    uncheckedTrackColor = SurfaceIndigo,
+                ),
+            )
+        }
+
+        // Gesture Test Surface Box
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(if (isGestureTestActive) ObsidianMidnight else SurfaceIndigo)
+                .border(
+                    1.dp,
+                    if (isGestureTestActive) AntiqueBrass else OutlineVariant,
+                    RoundedCornerShape(4.dp),
+                )
+                .clickable {
+                    if (isGestureTestActive) {
+                        handleKnock()
+                    } else {
+                        showConfirmationDialog = true
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = if (isGestureTestActive) {
+                    stringResource(R.string.settings_gesture_test_prompt)
+                } else {
+                    stringResource(R.string.settings_gesture_test_inactive_prompt)
+                },
+                fontFamily = KiwiSoda,
+                fontSize = 16.sp,
+                color = if (isGestureTestActive) ParchmentCream else MutedSand,
+            )
+        }
+
+        // Gesture Feedback Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = when {
+                    !isGestureTestActive -> stringResource(R.string.settings_gesture_test_inactive_prompt)
+                    isTriggered -> stringResource(R.string.settings_gesture_test_detected)
+                    else -> stringResource(R.string.settings_gesture_test_awaiting)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedSand,
+            )
+
+            val pillBg by animateColorAsState(
+                targetValue = when {
+                    !isGestureTestActive -> BurnishedBronze
+                    isTriggered -> AccentGold
+                    else -> AntiqueBrass
+                },
+                animationSpec = tween(200),
+                label = "PillBg",
+            )
+
+            Surface(
+                color = pillBg,
+                shape = CircleShape,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = when {
+                        !isGestureTestActive -> stringResource(R.string.settings_gesture_test_inactive_status)
+                        isTriggered -> stringResource(R.string.settings_gesture_test_triggered)
+                        else -> stringResource(R.string.settings_gesture_test_active_status)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextInk,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
+
+    // Confirmation Prompt Dialog
+    if (showConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmationDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_gesture_test_confirm_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = AccentGold,
+                )
+            },
+            text = {
+                Text(
+                    text = if (isSessionRunning) {
+                        stringResource(R.string.settings_gesture_test_confirm_message)
+                    } else {
+                        stringResource(R.string.settings_gesture_test_activate_desc)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ParchmentCream,
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onPurgeSession()
+                        isGestureTestActive = true
+                        showConfirmationDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AccentGold,
+                        contentColor = TextInk,
+                    ),
+                    shape = RoundedCornerShape(4.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_gesture_test_confirm_action),
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showConfirmationDialog = false },
+                    border = BorderStroke(1.dp, AntiqueBrass),
+                    shape = RoundedCornerShape(4.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_gesture_test_cancel_action),
+                        color = ParchmentCream,
+                    )
+                }
+            },
+            containerColor = ObsidianMidnight,
+            shape = RoundedCornerShape(4.dp),
+        )
+    }
+}
+
+/**
+ * Calculates Gravatar image URL from an email address using MD5 hashing.
+ */
+private fun gravatarUrl(email: String, size: Int = 128): String {
+    val cleanEmail = email.trim().lowercase()
+    val md5 = MessageDigest.getInstance("MD5")
+        .digest(cleanEmail.toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
+    return "https://www.gravatar.com/avatar/$md5?s=$size&d=identicon"
+}
+
+/**
+ * Asynchronously loads a network image bitmap off the main thread using platform APIs.
+ */
+@Composable
+private fun rememberNetworkImage(url: String?): ImageBitmap? {
+    var bitmapState by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(url) {
+        if (url.isNullOrBlank()) {
+            bitmapState = null
+            return@LaunchedEffect
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 3000
+                    readTimeout = 3000
+                    doInput = true
+                    instanceFollowRedirects = true
+                }
+                if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                    connection.inputStream.use { stream ->
+                        val decoded = BitmapFactory.decodeStream(stream)
+                        bitmapState = decoded?.asImageBitmap()
+                    }
+                }
+            } catch (_: Exception) {
+                bitmapState = null
+            }
+        }
+    }
+
+    return bitmapState
+}
+
+/**
+ * Hero card displaying active user account details, remote database sync toggle, and sign out action.
+ * Styled with a distinct deep burnished brass container (PrimaryContainer) and glowing gold accents to distinguish the profile section.
+ */
+@Composable
+private fun ActiveAccountCard(
+    authState: AuthState,
+    remoteSyncEnabled: Boolean,
+    onRemoteSyncChanged: (Boolean) -> Unit,
+    onSignOut: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = ParchmentCream,
+        ),
+        border = BorderStroke(1.5.dp, AccentGold),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.settings_account_header),
+                style = MaterialTheme.typography.labelMedium,
+                color = AccentGold,
+                fontWeight = FontWeight.Bold,
+            )
+
+            val user = authState.user
+            val name = user?.displayName?.ifBlank { "Jordan Doe" } ?: "Jordan Doe"
+            val email = user?.email?.ifBlank { "jordan@example.com" } ?: "jordan@example.com"
+            val photoUrl = user?.photoUrl?.toString()?.ifBlank { null } ?: gravatarUrl(email)
+            val avatarBitmap = rememberNetworkImage(photoUrl)
+
+            val initials = name.split(" ")
+                .mapNotNull { it.firstOrNull() }
+                .take(2)
+                .joinToString("")
+                .ifBlank { "JD" }
+
+            // User Avatar Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(AccentGold)
+                        .border(1.dp, ParchmentCream, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (avatarBitmap != null) {
+                        Image(
+                            bitmap = avatarBitmap,
+                            contentDescription = stringResource(R.string.settings_account_header),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape),
+                        )
+                    } else {
+                        Text(
+                            text = initials.uppercase(),
+                            fontFamily = KiwiSoda,
+                            fontSize = 18.sp,
+                            color = TextInk,
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = name,
+                        fontFamily = KiwiSoda,
+                        fontSize = 18.sp,
+                        color = ParchmentCream,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MutedSand,
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = AccentGold.copy(alpha = 0.35f),
+                thickness = 1.dp,
+            )
+
+            // Database Sync Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_sync_label),
+                    fontFamily = KiwiSoda,
+                    fontSize = 16.sp,
+                    color = ParchmentCream,
+                )
+
+                Switch(
+                    checked = remoteSyncEnabled,
+                    onCheckedChange = onRemoteSyncChanged,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = TextInk,
+                        checkedTrackColor = AccentGold,
+                        uncheckedThumbColor = MutedSand,
+                        uncheckedTrackColor = ObsidianMidnight,
+                        uncheckedBorderColor = AccentGold.copy(alpha = 0.5f),
+                    ),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Sign Out Action Button
+            OutlinedButton(
+                onClick = onSignOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(4.dp),
+                border = BorderStroke(1.dp, AccentGold),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = SurfaceIndigo,
+                    contentColor = AccentGold,
+                ),
+            ) {
+                Text(
+                    text = stringResource(R.string.sign_out),
+                    fontFamily = KiwiSoda,
+                    fontSize = 16.sp,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Reusable container wrapper for settings card modules.
+ */
+@Composable
+private fun SettingsCardContainer(
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = SurfaceIndigo,
+        ),
+        border = BorderStroke(1.dp, OutlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            content = content,
+        )
+    }
+}
+
+/**
+ * Segmented button group for option selection in Settings.
+ *
+ * @param options List of option label strings.
+ * @param selectedIndex Index of the currently selected option.
+ * @param onOptionSelected Callback invoked when an option at index is selected.
+ * @param modifier Modifier applied to the button group row.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SegmentedButtonGroup(
+    options: List<String>,
+    selectedIndex: Int,
+    onOptionSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SingleChoiceSegmentedButtonRow(
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        options.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = selectedIndex == index,
+                onClick = { onOptionSelected(index) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = AntiqueBrass,
+                    activeContentColor = TextInk,
+                    inactiveContainerColor = Color.Transparent,
+                    inactiveContentColor = ParchmentCream,
+                    activeBorderColor = AntiqueBrass,
+                    inactiveBorderColor = OutlineVariant,
+                ),
+            ) {
+                Text(
+                    text = option,
+                    fontFamily = KiwiSoda,
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CanvasChevronRightIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(16.dp)) {
+        val strokeWidth = 2.dp.toPx()
+        val w = size.width
+        val h = size.height
+
+        val path = Path().apply {
+            moveTo(w * 0.35f, h * 0.2f)
+            lineTo(w * 0.65f, h * 0.5f)
+            lineTo(w * 0.35f, h * 0.8f)
+        }
+        drawPath(
+            path = path,
+            color = tint,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round),
+        )
+    }
+}
+
+@Composable
+private fun CanvasTrashIcon(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(16.dp)) {
+        val strokeWidth = 1.5.dp.toPx()
+        val w = size.width
+        val h = size.height
+
+        drawLine(
+            color = tint,
+            start = Offset(w * 0.15f, h * 0.25f),
+            end = Offset(w * 0.85f, h * 0.25f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = tint,
+            start = Offset(w * 0.35f, h * 0.15f),
+            end = Offset(w * 0.65f, h * 0.15f),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round,
+        )
+        val path = Path().apply {
+            moveTo(w * 0.25f, h * 0.25f)
+            lineTo(w * 0.3f, h * 0.85f)
+            lineTo(w * 0.7f, h * 0.85f)
+            lineTo(w * 0.75f, h * 0.25f)
+        }
+        drawPath(path, color = tint, style = Stroke(width = strokeWidth, cap = StrokeCap.Round))
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsScreenPreview() {
+    KnockledgeTheme {
+        SettingsScreen(
+            settingsUiState = SettingsUiState(
+                bufferDurationSeconds = 300,
+                knockSensorThreshold = 4.0f,
+                transcriptionMode = "local",
+                summaryModel = "qwen2b",
+            ),
+            authState = AuthState(),
+            autoAiEnabled = true,
+            onAutoAiChanged = {},
+            onBufferDurationChanged = {},
+            onKnockThresholdChanged = {},
+            onSignOut = {},
+            onNavigateToHome = {},
+        )
+    }
+}

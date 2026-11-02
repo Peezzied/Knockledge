@@ -68,4 +68,17 @@ class SettingsViewModelTest {
         viewModel.setRemoteSyncEnabled(false)
         assertEquals(false, viewModel.uiState.value.remoteSyncEnabled)
     }
+
+    @Test
+    fun autoAiEnabledReflectsAndUpdatesSetting() {
+        val memoryStore = MemoryStore()
+        val settings = AppSettings(memoryStore, "qwen2b")
+        val viewModel = SettingsViewModel(settings, CoroutineScope(Dispatchers.Unconfined))
+
+        assertEquals(settings.autoAiProcessingEnabled.value, viewModel.autoAiEnabled.value)
+
+        viewModel.setAutoAiEnabled(true)
+        assertEquals(true, viewModel.autoAiEnabled.value)
+        assertEquals(true, settings.autoAiProcessingEnabled.value)
+    }
 }

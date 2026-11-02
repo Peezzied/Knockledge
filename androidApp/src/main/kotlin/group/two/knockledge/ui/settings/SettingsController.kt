@@ -52,6 +52,12 @@ interface SettingsController {
     /** Sets the input source (mic, mic_device). */
     fun setInputSource(source: String)
 
+    /** Whether automatic AI processing runs when saving an audio buffer. */
+    val autoAiEnabled: StateFlow<Boolean>
+
     /** Sets whether remote database sync is enabled. */
     fun setRemoteSyncEnabled(enabled: Boolean)
+
+    /** Sets the automatic AI processing preference. */
+    fun setAutoAiEnabled(enabled: Boolean)
 }

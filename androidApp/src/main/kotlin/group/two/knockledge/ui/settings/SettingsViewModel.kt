@@ -79,6 +79,9 @@ class SettingsViewModel @Inject constructor(
         ),
     )
 
+    /** Whether automatic AI processing runs when saving an audio buffer. */
+    override val autoAiEnabled: StateFlow<Boolean> = settings.autoAiProcessingEnabled
+
     private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
     private fun <A, B, C, D> quadrupleOf(a: A, b: B, c: C, d: D) = Quadruple(a, b, c, d)
@@ -136,5 +139,10 @@ class SettingsViewModel @Inject constructor(
     /** Sets whether remote database sync is enabled. */
     override fun setRemoteSyncEnabled(enabled: Boolean) {
         settings.setRemoteSyncEnabled(enabled)
+    }
+
+    /** Sets the automatic AI processing preference. */
+    override fun setAutoAiEnabled(enabled: Boolean) {
+        settings.setAutoAiProcessingEnabled(enabled)
     }
 }
