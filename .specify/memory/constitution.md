@@ -1,11 +1,10 @@
 <!--
 SYNC IMPACT REPORT
-- Version change: 1.2.0 -> 1.3.0
+- Version change: 1.3.0 -> 1.4.0
 - List of modified principles:
   - None
 - Added sections:
-  - VII. Domain Layer and Interactor Governance
-  - Interactor approval requirement under Code Quality and Architecture Directives
+  - Technology Stack item 7 extended with on-device inference (whisper.cpp via JNI, LiteRT-LM)
 - Removed sections:
   - None
 - Follow-up TODOs:
@@ -81,7 +80,7 @@ The project MUST adhere to the following architecture and component boundaries:
 4. **Data Persistence**: Room for local device caching and Cloud Firestore for remote synchronization.
 5. **Identity & Auth**: Firebase Auth.
 6. **Audio & Sensor Pipeline**: Circular window buffer for audio caching, device accelerometer for gesture capture, Google SpeechRecognizer, and Whisper.
-7. **AI Inference**: Firebase AI for cloud-assisted processing.
+7. **AI Inference**: Firebase AI for cloud-assisted processing. On-device inference uses whisper.cpp via JNI for speech and LiteRT-LM for text.
 
 ## Development Workflow & Quality Gates
 
@@ -121,4 +120,4 @@ This constitution supersedes all other documentation, practices, and informal co
   - PATCH: Wording refinements, typo corrections, and non-semantic adjustments.
 - **Compliance Review**: All specifications, implementation plans, and code reviews MUST verify compliance with these rules.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-29 | **Last Amended**: 2026-10-31
+**Version**: 1.4.0 | **Ratified**: 2026-10-29 | **Last Amended**: 2026-11-02

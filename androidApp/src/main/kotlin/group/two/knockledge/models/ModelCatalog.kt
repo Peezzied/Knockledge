@@ -10,13 +10,12 @@ data class ModelFile(
 )
 
 /**
- * Model choices, all free and from Hugging Face. Shared by Android and iOS, and mirrored in
- * scripts/models.sh.
+ * Model choices, all free and from Hugging Face. Shared by Android and iOS.
  *
  * - Speech: Whisper large-v3-turbo (q5_0) is the default; small/base/tiny (q5_1) are
  *   smaller and faster but much weaker on Filipino.
  * - Voice activity: Silero VAD, so silence is skipped instead of hallucinated.
- * - Summary: Unsloth's Qwen3.5 GGUF, Q4_0 (fastest 4-bit on ARM CPUs, repacked by llama.cpp).
+ * - Summary: Qwen3.5 `.litertlm` from litert-community, run by LiteRT-LM.
  *   2B on devices with about 4 GB RAM or more, 0.8B below that.
  */
 object ModelCatalog {
@@ -63,17 +62,17 @@ object ModelCatalog {
     val qwen2b = ModelFile(
         id = "qwen2b",
         label = "Qwen3.5 2B",
-        url = "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/main/Qwen3.5-2B-Q4_0.gguf",
-        fileName = "Qwen3.5-2B-Q4_0.gguf",
-        approxBytes = 1_210_000_000L,
+        url = "https://huggingface.co/litert-community/Qwen3.5-2B/resolve/main/Qwen3.5-2B_int8.litertlm",
+        fileName = "Qwen3.5-2B_int8.litertlm",
+        approxBytes = 2_120_000_000L,
     )
 
     val qwen08b = ModelFile(
         id = "qwen08b",
         label = "Qwen3.5 0.8B",
-        url = "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_0.gguf",
-        fileName = "Qwen3.5-0.8B-Q4_0.gguf",
-        approxBytes = 507_000_000L,
+        url = "https://huggingface.co/litert-community/Qwen3.5-0.8B/resolve/main/Qwen3.5-0.8B_int8.litertlm",
+        fileName = "Qwen3.5-0.8B_int8.litertlm",
+        approxBytes = 965_000_000L,
     )
 
     val all: List<ModelFile> = listOf(whisper, whisperSmall, whisperBase, whisperTiny, vad, qwen2b, qwen08b)

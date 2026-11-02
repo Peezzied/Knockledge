@@ -220,4 +220,11 @@
     <string name="rewind_15s">Rewind 15 seconds</string>
     <string name="forward_15s">Forward 15 seconds</string>
     <string name="chapters_sheet_title">Chapters</string>
+
+    <!-- On-device engine errors -->
+    <string name="engine_error_model_missing">%1$s is not installed. Download it in Settings to use offline AI.</string>
+    <string name="engine_error_load_failed">The offline model could not load. Re-download it in Settings.</string>
+    <string name="engine_error_unsupported_device">Offline AI not supported on this device.</string>
+    <string name="engine_error_out_of_memory">Not enough memory for the offline model. Try a lighter model in Settings.</string>
+    <string name="engine_nothing_heard">Nothing was heard in that clip.</string>
 </resources>

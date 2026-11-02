@@ -5,7 +5,6 @@ import group.two.knockledge.models.ModelFiles
 import group.two.knockledge.models.SummaryModelIds
 import group.two.knockledge.pipeline.PlaceholderSummarizer
 import group.two.knockledge.pipeline.PromptProvider
-import group.two.knockledge.pipeline.QwenChatFormat
 import group.two.knockledge.pipeline.Summaries
 import group.two.knockledge.pipeline.Summarizer
 import group.two.knockledge.pipeline.SummarizerPrompt
@@ -21,7 +20,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * whisper.cpp, one call per rewind. Android: JNI (whisper module). iOS: whisper.xcframework.
- * Implementations load the model, transcribe, free it, and throw on failure.
+ * Implementations load the model, transcribe, free it, and throw [EngineError] on failure.
  */
 interface SpeechEngine {
     /**
@@ -38,22 +37,25 @@ interface SpeechEngine {
     ): String
 }
 
-/** llama.cpp, one completion per rewind. Android: JNI (llama module). iOS: llama.xcframework. */
+/**
+ * LiteRT-LM, one completion per rewind. The runtime applies the model's own chat template,
+ * so the engine takes the system and user text separately. Implementations create a fresh
+ * engine and conversation per call, close both before returning, and throw [EngineError]
+ * on failure.
+ */
 interface TextEngine {
     /**
-     * Returns the completion for [prompt], at most [maxTokens] new tokens, sampling set by
-     * [temperature], [topP], [topK] and [presencePenalty]; [nCtx] is the context window size.
+     * Returns the completion for [userPrompt] under [systemPrompt], at most [maxTokens]
+     * new tokens, sampling set by [temperature], [topP] and [topK].
      */
     fun complete(
         modelPath: String,
-        prompt: String,
-        nCtx: Int,
-        threads: Int,
+        systemPrompt: String,
+        userPrompt: String,
         maxTokens: Int,
         temperature: Float,
         topP: Float,
         topK: Int,
-        presencePenalty: Float,
     ): String
 }
 
@@ -106,8 +108,8 @@ class OnDeviceTranscriber(
 }
 
 /**
- * Summarizes with the model picked in Settings: an Unsloth Qwen3.5 GGUF (the default) or Apple
- * Foundation (when available). The recap language comes from Settings too.
+ * Summarizes with the model picked in Settings: a litert-community Qwen3.5 `.litertlm`
+ * (the default) or Apple Foundation (when available). The recap language comes from Settings too.
  * If Apple's model refuses or fails, or Filipino output is asked for (Apple's model does not
  * support Filipino), an installed Qwen model does the work so the rewind is not lost.
  */
@@ -162,18 +164,15 @@ class OnDeviceSummarizer(
     }
 
     private fun runQwen(modelPath: String, request: SummaryRequest, language: String): Summary {
-        val prompt = QwenChatFormat.build(promptProvider.summarizerSystem(language), promptProvider.summarizerUser(request, outputLanguage = language))
         val raw = engine.complete(
             modelPath = modelPath,
-            prompt = prompt,
-            nCtx = 4096,
-            threads = threads,
+            systemPrompt = promptProvider.summarizerSystem(language),
+            userPrompt = promptProvider.summarizerUser(request, outputLanguage = language),
             maxTokens = MAX_TOKENS,
             // Qwen3.5 non-thinking settings, a little cooler for factual recaps.
             temperature = 0.7f,
             topP = 0.8f,
             topK = 20,
-            presencePenalty = 1.5f,
         )
         return SummaryParser.parse(raw, request.redactedCount)
     }
