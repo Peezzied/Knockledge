@@ -83,7 +83,13 @@ object AndroidTextEngine : TextEngine {
                 EngineConfig(
                     modelPath = modelFile.absolutePath,
                     backend = Backend.CPU(),
-                    cacheDir = modelFile.parentFile?.absolutePath,
+                    cacheDir = listOfNotNull(
+                        modelFile.parentFile?.takeIf { it.canWrite() },
+                        File(modelFile.parentFile, "litert_cache").takeIf { it.exists() && it.canWrite() },
+                        File(System.getProperty("java.io.tmpdir") ?: "").takeIf { it.exists() && it.canWrite() },
+                        File("/data/data/group.two.knockledge/cache").takeIf { it.exists() && it.canWrite() },
+                        File("/data/user/0/group.two.knockledge/cache").takeIf { it.exists() && it.canWrite() },
+                    ).firstOrNull()?.absolutePath ?: modelFile.parentFile?.absolutePath,
                 ),
             ).also { it.initialize() }
         } catch (e: OutOfMemoryError) {

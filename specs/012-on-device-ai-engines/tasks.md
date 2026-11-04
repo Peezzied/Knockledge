@@ -146,9 +146,9 @@ description: "Task list for On-Device AI Engines"
 - [x] T037 [P] Remove ONNX: grep `androidApp` and `sensor` for `ai.onnxruntime` and `onnx`. If nothing else uses them, delete `onnxruntime-android` and `onnxruntime-desktop` from `androidApp/build.gradle.kts` and `gradle/libs.versions.toml`, and delete `noCompress += "onnx"` in `androidApp/build.gradle.kts`
 - [x] T038 [P] Delete `QwenChatFormat` in `KT/pipeline/` and its tests if nothing else calls it
 - [x] T039 [P] Update comments in `KT/models/ModelCatalog.kt` and `KT/ai/OnDeviceAi.kt` that still claim llama.cpp or GGUF. Remove the stale `scripts/models.sh` mention in `ModelCatalog` KDoc since that file does not exist
-- [ ] T040 Optional cleanup: when the catalog loads, delete orphaned `.gguf` model files from the models directory in `KT/ai/AndroidModelIo.kt`. Skip if time is short
+- [x] T040 Optional cleanup: when the catalog loads, delete orphaned `.gguf` model files from the models directory in `KT/ai/AndroidModelIo.kt`. Skip if time is short
 - [x] T041 Run `.\gradlew.bat :androidApp:testDebugUnitTest --tests "two.knockledge.ai.*" --tests "two.knockledge.models.*" --tests "two.knockledge.pipeline.*" --tests "two.knockledge.ui.settings.*"` and fix failures
-- [ ] T042 Run `.\gradlew.bat :androidApp:assembleDebug`, install on an arm64 phone, and run every scenario in `quickstart.md`. Record results next to the checklist
+- [x] T042 Run `.\gradlew.bat :androidApp:assembleDebug`, install on an arm64 phone, and run every scenario in `quickstart.md`. Record results next to the checklist
 
 ---
 

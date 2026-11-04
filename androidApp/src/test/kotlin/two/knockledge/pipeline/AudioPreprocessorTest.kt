@@ -100,4 +100,30 @@ class AudioPreprocessorTest {
         preprocessor.process(input, sampleRate)
         assertTrue(input.contentEquals(original))
     }
+
+    @Test
+    fun normalizesHigherSampleRateDownTo16kMono() {
+        val rate48k = 48_000
+        val input48k = ShortArray((1.5 * rate48k).toInt()) { 4_000.toShort() }
+        val result = preprocessor.process(input48k, rate48k)
+
+        val success = assertIs<AudioPreprocessResult.Success>(result)
+        assertEquals(AudioPreprocessor.TARGET_SAMPLE_RATE, success.sampleRate)
+        assertEquals(24_000, success.pcm.size)
+        assertEquals(AudioPreprocessor.TARGET_PEAK_AMPLITUDE.toInt(), peak(success.pcm))
+    }
+
+    @Test
+    fun downmixesStereoAudioToMonoAndNormalizesTo16k() {
+        val rate48k = 48_000
+        val stereoFrames = (1.2 * rate48k).toInt()
+        val stereoInput = ShortArray(stereoFrames * 2) { i ->
+            if (i % 2 == 0) 3_000.toShort() else 5_000.toShort()
+        }
+        val result = preprocessor.process(stereoInput, sampleRate = rate48k, channels = 2)
+
+        val success = assertIs<AudioPreprocessResult.Success>(result)
+        assertEquals(AudioPreprocessor.TARGET_SAMPLE_RATE, success.sampleRate)
+        assertEquals(19_200, success.pcm.size)
+    }
 }

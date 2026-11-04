@@ -5,8 +5,8 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * Pure-Kotlin [AudioPreprocessor]: energy-based Voice Activity Detection over 20 ms
- * frames, dead air truncation, then peak normalization.
+ * Pure-Kotlin [AudioPreprocessor]: normalizes audio to 16 kHz mono PCM, runs energy-based
+ * Voice Activity Detection over 20 ms frames, truncates dead air, then peak normalizes.
  *
  * Silent runs longer than [AudioPreprocessor.MAX_DEAD_AIR_GAP_MILLIS] are cut down to
  * [AudioPreprocessor.SILENCE_PADDING_MILLIS] of ambient silence; retained audio whose
@@ -15,27 +15,29 @@ import kotlin.math.sqrt
 class DefaultAudioPreprocessor : AudioPreprocessor {
 
     override fun process(pcm: ShortArray, sampleRate: Int): AudioPreprocessResult {
-        if (pcm.isEmpty()) return AudioPreprocessResult.InsufficientSpeech(0L)
-        val frameSamples = sampleRate * FRAME_MILLIS / 1_000
+        val normalized = AudioPreprocessor.normalizeTo16kMono(pcm, sampleRate)
+        if (normalized.isEmpty()) return AudioPreprocessResult.InsufficientSpeech(0L)
+        val targetRate = AudioPreprocessor.TARGET_SAMPLE_RATE
+        val frameSamples = targetRate * FRAME_MILLIS / 1_000
         val maxGapFrames = (AudioPreprocessor.MAX_DEAD_AIR_GAP_MILLIS / FRAME_MILLIS).toInt()
         val paddingFrames = (AudioPreprocessor.SILENCE_PADDING_MILLIS / FRAME_MILLIS).toInt()
 
-        val loud = BooleanArray((pcm.size + frameSamples - 1) / frameSamples) { i ->
-            rms(pcm, i * frameSamples, min(pcm.size, (i + 1) * frameSamples)) >= SPEECH_RMS_THRESHOLD
+        val loud = BooleanArray((normalized.size + frameSamples - 1) / frameSamples) { i ->
+            rms(normalized, i * frameSamples, min(normalized.size, (i + 1) * frameSamples)) >= SPEECH_RMS_THRESHOLD
         }
 
-        val out = ShortArray(pcm.size)
+        val out = ShortArray(normalized.size)
         var outSize = 0
         var speechFrames = 0
         var i = 0
         while (i < loud.size) {
             val runEnd = runEnd(loud, i)
             if (loud[i]) {
-                outSize += copyFrames(pcm, out, outSize, i, runEnd, frameSamples)
+                outSize += copyFrames(normalized, out, outSize, i, runEnd, frameSamples)
                 speechFrames += runEnd - i
             } else {
                 val keep = min(runEnd - i, if (runEnd - i > maxGapFrames) paddingFrames else runEnd - i)
-                outSize += copyFrames(pcm, out, outSize, i, i + keep, frameSamples)
+                outSize += copyFrames(normalized, out, outSize, i, i + keep, frameSamples)
             }
             i = runEnd
         }
@@ -49,8 +51,8 @@ class DefaultAudioPreprocessor : AudioPreprocessor {
         normalizePeak(trimmed)
         return AudioPreprocessResult.Success(
             pcm = trimmed,
-            durationMillis = trimmed.size * 1_000L / sampleRate,
-            sampleRate = sampleRate,
+            durationMillis = trimmed.size * 1_000L / targetRate,
+            sampleRate = targetRate,
         )
     }
 

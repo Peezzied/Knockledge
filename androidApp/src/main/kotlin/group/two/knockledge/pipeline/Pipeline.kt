@@ -81,7 +81,7 @@ class RewindPipeline(
             is AudioPreprocessResult.Success -> {
                 onStage(RewindStage.Transcribing)
                 val transcript = try {
-                    transcriber.transcribe(processed.pcm, sampleRate)
+                    transcriber.transcribe(processed.pcm, processed.sampleRate)
                 } finally {
                     processed.pcm.fill(0)
                 }
