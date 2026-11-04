@@ -24,6 +24,4 @@ __pycache__/
 .specify/bridge-snapshots/
 .specify/superpowers-handoff.json
 
-google-services.json
-
 androidApp/src/test/resources-local/
