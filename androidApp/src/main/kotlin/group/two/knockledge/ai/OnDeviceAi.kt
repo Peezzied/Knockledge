@@ -19,6 +19,47 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 
+/**
+ * whisper.cpp, one call per rewind. Implementations load the model, transcribe,
+ * free it, and throw [EngineError] on failure.
+ */
+interface SpeechEngine {
+    /**
+     * Returns the transcript of [pcm]. [language] is one of [TranscriptionLanguages], [prompt]
+     * biases spelling, and [vadModelPath] trims silence when the file exists.
+     */
+    fun transcribe(
+        modelPath: String,
+        pcm: ShortArray,
+        language: String,
+        prompt: String,
+        vadModelPath: String?,
+        threads: Int,
+    ): String
+}
+
+/**
+ * LiteRT-LM, one completion per rewind. The runtime applies the model's own chat template,
+ * so the engine takes the system and user text separately. Implementations create a fresh
+ * engine and conversation per call, close both before returning, and throw [EngineError]
+ * on failure.
+ */
+interface TextEngine {
+    /**
+     * Returns the completion for [userPrompt] under [systemPrompt], at most [maxTokens]
+     * new tokens, sampling set by [temperature], [topP] and [topK].
+     */
+    fun complete(
+        modelPath: String,
+        systemPrompt: String,
+        userPrompt: String,
+        maxTokens: Int,
+        temperature: Float,
+        topP: Float,
+        topK: Int,
+    ): String
+}
+
 /** Use the big cores; more threads than that just fight each other on phones. */
 fun inferenceThreads(cpuCores: Int): Int = (cpuCores / 2).coerceIn(2, 4)
 

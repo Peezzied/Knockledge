@@ -175,6 +175,7 @@
     <string name="processing_failed_length_title">Processing Failed (Audio Length)</string>
     <string name="processing_failed_length_subtitle">Audio is too short or contains no detected speech.</string>
     <string name="processing_failed_error_title">AI Processing Error</string>
+    <string name="processing_stop">Stop</string>
     <string name="retry">Retry</string>
 
     <!-- AI Completion Notifications -->

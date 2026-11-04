@@ -14,7 +14,7 @@ import group.two.knockledge.pipeline.DefaultAudioPreprocessor
 import group.two.knockledge.pipeline.PlaceholderSummarizer
 import group.two.knockledge.pipeline.PlaceholderTranscriber
 import group.two.knockledge.pipeline.RewindPipeline
-import group.two.knockledge.ui.processing.NoteAiProcessingState
+import group.two.knockledge.pipeline.NoteAiProcessingState
 import group.two.knockledge.ui.processing.NoteProcessingViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -320,5 +320,51 @@ class NoteProcessingViewModelTest {
 
         assertEquals("Untitled rewind", notifiedTitle)
         assertTrue(notifiedSummary != null)
+    }
+
+    @Test
+    fun stopProcessingCancelsRunAndReturnsToIdle() = runBlocking {
+        val wav = createDummyWavFile()
+        val note = Note(
+            id = "note-stop",
+            userId = user.uid,
+            title = "Stop Note",
+            createdAtEpochMs = 1_000L,
+            updatedAtEpochMs = 1_000L,
+            audio = AudioMetadata(wav.absolutePath, null, 1_000L, 16_000, TriggerType.GESTURE),
+        )
+        val notesRepo = FakeNotes(note)
+        val authRepo = FakeAuth(user)
+        val pipeline = RewindPipeline(
+            transcriber = object : group.two.knockledge.pipeline.Transcriber {
+                override suspend fun transcribe(
+                    pcm: ShortArray,
+                    sampleRate: Int,
+                ): group.two.knockledge.pipeline.TranscriptResult {
+                    delay(60_000)
+                    error("unreachable")
+                }
+            },
+            preprocessor = DefaultAudioPreprocessor(),
+            summarizer = PlaceholderSummarizer(),
+        )
+
+        val vm = NoteProcessingViewModel(
+            notes = notesRepo,
+            auth = authRepo,
+            pipeline = pipeline,
+            coroutineScope = CoroutineScope(Dispatchers.Unconfined),
+        )
+
+        vm.processNote("note-stop")
+        assertTrue(vm.processingState.value.isProcessing)
+
+        vm.stopProcessing()
+
+        val state = vm.processingState.value
+        assertEquals(NoteAiProcessingState.IDLE, state.state)
+        assertFalse(state.isProcessing)
+        assertEquals(null, notesRepo.attachedTranscript)
+        assertEquals(null, notesRepo.attachedSummary)
     }
 }

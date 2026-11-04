@@ -13,16 +13,18 @@ import group.two.knockledge.data.TranscriptInput
 import group.two.knockledge.data.model.AiEngineType
 import group.two.knockledge.notification.AiNotificationNotifier
 import group.two.knockledge.notification.NoopAiNotificationNotifier
+import group.two.knockledge.pipeline.AiProcessingTracker
+import group.two.knockledge.pipeline.NoteAiProcessingState
+import group.two.knockledge.pipeline.NoteProcessingUiState
 import group.two.knockledge.pipeline.PipelineResult
 import group.two.knockledge.pipeline.RewindPipeline
 import group.two.knockledge.pipeline.RewindStage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.ByteBuffer
@@ -40,18 +42,20 @@ class NoteProcessingViewModel(
     private val notifier: AiNotificationNotifier = NoopAiNotificationNotifier,
     coroutineScope: CoroutineScope? = null,
     private val appContext: android.content.Context? = null,
+    private val tracker: AiProcessingTracker = AiProcessingTracker(),
 ) : ViewModel(), NoteProcessingController {
 
     private val scope = coroutineScope ?: viewModelScope
 
-    private val _processingState = MutableStateFlow(NoteProcessingUiState())
-    override val processingState: StateFlow<NoteProcessingUiState> = _processingState.asStateFlow()
+    override val processingState: StateFlow<NoteProcessingUiState> = tracker.state
+
+    private var processingJob: Job? = null
 
     override fun processNote(noteId: String) {
         // Deduplication guard: do not re-trigger if processing is active
-        if (_processingState.value.isProcessing) return
+        if (tracker.state.value.isProcessing) return
 
-        _processingState.update {
+        tracker.update {
             NoteProcessingUiState(
                 noteId = noteId,
                 isProcessing = true,
@@ -62,11 +66,11 @@ class NoteProcessingViewModel(
             )
         }
 
-        scope.launch(Dispatchers.Default) {
+        processingJob = scope.launch(Dispatchers.Default) {
             try {
                 val user = auth.currentUser.value
                 if (user == null) {
-                    _processingState.update {
+                    tracker.update {
                         it.copy(
                             isProcessing = false,
                             state = NoteAiProcessingState.FAILED,
@@ -78,7 +82,7 @@ class NoteProcessingViewModel(
 
                 val note = notes.getNote(noteId, user.uid)
                 if (note == null) {
-                    _processingState.update {
+                    tracker.update {
                         it.copy(
                             isProcessing = false,
                             state = NoteAiProcessingState.FAILED,
@@ -90,7 +94,7 @@ class NoteProcessingViewModel(
 
                 val audioFile = File(note.audio.localPath)
                 if (!audioFile.exists() || !audioFile.isFile) {
-                    _processingState.update {
+                    tracker.update {
                         it.copy(
                             isProcessing = false,
                             state = NoteAiProcessingState.FAILED,
@@ -107,21 +111,26 @@ class NoteProcessingViewModel(
                     sampleRate = note.audio.sampleRate,
                     durationMillis = note.audio.durationMs,
                     onStage = { stage ->
-                        _processingState.update {
-                            it.copy(
-                                stage = stage,
-                                state = if (stage == RewindStage.Summarizing) {
-                                    NoteAiProcessingState.SUMMARIZING
-                                } else {
-                                    NoteAiProcessingState.TRANSCRIBING
-                                },
-                            )
+                        if (isActive) {
+                            tracker.update {
+                                it.copy(
+                                    stage = stage,
+                                    state = if (stage == RewindStage.Summarizing) {
+                                        NoteAiProcessingState.SUMMARIZING
+                                    } else {
+                                        NoteAiProcessingState.TRANSCRIBING
+                                    },
+                                )
+                            }
                         }
                     },
                 )
 
+                // A blocking engine call cannot be cancelled mid-run; drop its late result.
+                if (!isActive) return@launch
+
                 if (result is PipelineResult.InsufficientSpeech) {
-                    _processingState.update {
+                    tracker.update {
                         it.copy(
                             isProcessing = false,
                             state = NoteAiProcessingState.SKIPPED,
@@ -171,7 +180,7 @@ class NoteProcessingViewModel(
 
                 notifier.notifyAiComplete(success.summary.title, success.summary.gist)
 
-                _processingState.update {
+                tracker.update {
                     it.copy(
                         isProcessing = false,
                         state = NoteAiProcessingState.COMPLETED,
@@ -187,7 +196,7 @@ class NoteProcessingViewModel(
                 } else {
                     t.message ?: "AI processing failed."
                 }
-                _processingState.update {
+                tracker.update {
                     it.copy(
                         isProcessing = false,
                         state = NoteAiProcessingState.FAILED,
@@ -198,9 +207,19 @@ class NoteProcessingViewModel(
         }
     }
 
+    /**
+     * Cancels the in-flight pipeline job and returns the controls to idle.
+     * Blocking engine calls finish their current call; their results are discarded.
+     */
+    override fun stopProcessing() {
+        if (!tracker.state.value.isProcessing) return
+        processingJob?.cancel()
+        tracker.set(NoteProcessingUiState())
+    }
+
     override fun resetState() {
-        if (_processingState.value.isProcessing) return
-        _processingState.value = NoteProcessingUiState()
+        if (tracker.state.value.isProcessing) return
+        tracker.set(NoteProcessingUiState())
     }
 
     private fun readPcm(wav: File): ShortArray {

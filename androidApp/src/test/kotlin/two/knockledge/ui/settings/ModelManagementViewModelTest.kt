@@ -60,7 +60,7 @@ class ModelManagementViewModelTest {
     private fun aiControls(storage: ModelStorage): AiControls {
         val settings = AppSettings(MemoryStore(), ModelCatalog.qwen2b.id)
         val store = ModelStore(storage, FakeDownloader(), selectedSummaryModel = { settings.summaryModel.value })
-        return AiControls(settings, store, system = null, totalRamBytes = 4_000_000_000L)
+        return AiControls(settings, store, totalRamBytes = 4_000_000_000L)
     }
 
     @Test

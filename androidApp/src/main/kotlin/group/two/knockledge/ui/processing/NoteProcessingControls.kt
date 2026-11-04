@@ -21,6 +21,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import group.two.knockledge.R
+import group.two.knockledge.pipeline.NoteAiProcessingState
+import group.two.knockledge.pipeline.NoteProcessingUiState
 import group.two.knockledge.pipeline.RewindStage
 
 /**
@@ -30,6 +32,7 @@ import group.two.knockledge.pipeline.RewindStage
 fun NoteProcessingControls(
     uiState: NoteProcessingUiState,
     onProcessNote: () -> Unit,
+    onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -65,6 +68,10 @@ fun NoteProcessingControls(
                             text = stageText,
                             style = MaterialTheme.typography.bodyMedium,
                         )
+                        Spacer(modifier = Modifier.weight(1f))
+                        OutlinedButton(onClick = onStop) {
+                            Text(text = stringResource(R.string.processing_stop))
+                        }
                     }
                 }
             }
@@ -124,6 +131,7 @@ fun NoteProcessingControlsIdlePreview() {
         NoteProcessingControls(
             uiState = NoteProcessingUiState(state = NoteAiProcessingState.IDLE),
             onProcessNote = {},
+            onStop = {},
         )
     }
 }
@@ -139,6 +147,7 @@ fun NoteProcessingControlsTranscribingPreview() {
                 stage = RewindStage.Transcribing,
             ),
             onProcessNote = {},
+            onStop = {},
         )
     }
 }
@@ -153,6 +162,7 @@ fun NoteProcessingControlsFailedPreview() {
                 errorMessage = "Network timeout while generating summary.",
             ),
             onProcessNote = {},
+            onStop = {},
         )
     }
 }
@@ -167,6 +177,7 @@ fun NoteProcessingControlsCompletedPreview() {
                 isSuccess = true,
             ),
             onProcessNote = {},
+            onStop = {},
         )
     }
 }
