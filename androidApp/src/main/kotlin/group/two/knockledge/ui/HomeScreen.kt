@@ -2088,6 +2088,7 @@ private fun HomeScreenPreview() {
                     RecordScreen(
                         recordingUiState = KnockRecordingUiState(
                             isRecording = true,
+                            sessionSeconds = 60,
                             bufferedSeconds = 60,
                             maxBufferSeconds = 300,
                             level = 0.5f,

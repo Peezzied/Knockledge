@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,8 @@ import group.two.knockledge.ui.theme.KnockledgeTheme
 import group.two.knockledge.ui.theme.ObsidianMidnight
 import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.WaveformTeal
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.util.Random
 import kotlin.math.cos
@@ -249,6 +252,8 @@ fun CassetteReelHub(
  * @param isSavingSnapshot Whether a snapshot is currently saving (disables click).
  * @param canCapture Whether the buffer holds enough audio to save; taps while recording
  * with this false play a rejection flash instead of the suction animation.
+ * @param captureEvents External capture signals (such as the knock gesture) that replay
+ * the suction animation without a tap.
  */
 @Composable
 fun CaptureCircleButton(
@@ -257,6 +262,7 @@ fun CaptureCircleButton(
     modifier: Modifier = Modifier,
     isSavingSnapshot: Boolean = false,
     canCapture: Boolean = true,
+    captureEvents: Flow<Unit>? = null,
 ) {
     val scope = rememberCoroutineScope()
     var isSinking by remember { mutableStateOf(false) }
@@ -337,6 +343,27 @@ fun CaptureCircleButton(
         animationSpec = tween(durationMillis = 100),
         label = "suction_depth_alpha",
     )
+
+    // Full capture animation: sink, particle suction, then fade the rings back in.
+    suspend fun playCaptureAnimation() {
+        isSinking = true
+        suctionAnim.snapTo(0f)
+        suctionAnim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 480,
+                easing = FastOutLinearInEasing,
+            ),
+        )
+        isSinking = false
+        ringAlpha.snapTo(0f)
+        suctionAnim.snapTo(0f)
+        ringAlpha.animateTo(1f, tween(durationMillis = 400))
+    }
+
+    LaunchedEffect(captureEvents) {
+        captureEvents?.collectLatest { playCaptureAnimation() }
+    }
 
     Box(
         modifier = modifier
@@ -429,19 +456,7 @@ fun CaptureCircleButton(
                                 isRejected = false
                                 return@launch
                             }
-                            isSinking = true
-                            suctionAnim.snapTo(0f)
-                            suctionAnim.animateTo(
-                                targetValue = 1f,
-                                animationSpec = tween(
-                                    durationMillis = 480,
-                                    easing = FastOutLinearInEasing,
-                                ),
-                            )
-                            isSinking = false
-                            ringAlpha.snapTo(0f)
-                            suctionAnim.snapTo(0f)
-                            ringAlpha.animateTo(1f, tween(durationMillis = 400))
+                            playCaptureAnimation()
                         }
                         onClick()
                     },

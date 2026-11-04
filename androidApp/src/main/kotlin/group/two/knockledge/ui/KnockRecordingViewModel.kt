@@ -5,7 +5,13 @@ import androidx.lifecycle.viewModelScope
 import group.two.knockledge.KnockledgeController
 import group.two.knockledge.data.TriggerType
 import group.two.knockledge.settings.AppSettings
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -20,12 +26,30 @@ class KnockRecordingViewModel(
 ) : ViewModel(), KnockRecordingController {
     private val lastSaveSuccess = MutableStateFlow<Boolean?>(null)
 
+    private val sessionSeconds = MutableStateFlow(0)
+
+    init {
+        viewModelScope.launch {
+            controller.state
+                .map { it.isRunning to it.isPaused }
+                .distinctUntilChanged()
+                .collectLatest { (running, paused) ->
+                    if (!running && !paused) sessionSeconds.value = 0
+                    while (running && !paused) {
+                        delay(1000L)
+                        sessionSeconds.value++
+                    }
+                }
+        }
+    }
+
     /** Combined recording, buffer, and save-status state for the UI. */
     override val uiState: StateFlow<KnockRecordingUiState> =
-        combine(controller.state, settings.bufferDurationSeconds, lastSaveSuccess) { rec, max, saved ->
+        combine(controller.state, settings.bufferDurationSeconds, lastSaveSuccess, sessionSeconds) { rec, max, saved, session ->
             KnockRecordingUiState(
                 isRecording = rec.isRunning,
                 isPaused = rec.isPaused,
+                sessionSeconds = session,
                 bufferedSeconds = (rec.bufferedMillis / 1000L).toInt(),
                 maxBufferSeconds = max,
                 isGestureActive = rec.isGestureActive,
@@ -36,6 +60,9 @@ class KnockRecordingViewModel(
                 bands = rec.bands,
             )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, KnockRecordingUiState())
+
+    /** Knock-gesture capture signals forwarded from the session controller. */
+    override val gestureCaptures: SharedFlow<Unit> = controller.gestureCaptures
 
     /** Starts the recording session. */
     override fun startSession() = controller.start()

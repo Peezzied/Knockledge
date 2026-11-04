@@ -14,6 +14,7 @@ import group.two.knockledge.pipeline.RewindPipeline
 import group.two.knockledge.pipeline.RewindStage
 import group.two.knockledge.sensor.KnockGestureDetector
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -113,7 +114,10 @@ class KnockledgeController(
     private val isGestureListening = MutableStateFlow(false)
 
 
-    private val _gestureCaptures = MutableSharedFlow<Unit>()
+    private val _gestureCaptures = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
     /**
      * Emits once for each knock-gesture capture that actually saves, so the capture

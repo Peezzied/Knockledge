@@ -1,5 +1,6 @@
 package group.two.knockledge.ui
 
+import androidx.compose.animation.VectorConverter
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -47,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,6 +66,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -82,6 +86,7 @@ import group.two.knockledge.ui.theme.TextInk
 import group.two.knockledge.ui.theme.WaveformTeal
 import group.two.knockledge.ui.theme.speakerClothTexture
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.Random
@@ -89,18 +94,37 @@ import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 
-
+private const val EVICTION_BLINK_PULSE_COUNT = 2
+private const val EVICTION_BLINK_DURATION_MILLIS = 150
+private const val PAUSED_BLINK_DURATION_MILLIS = 500
+private const val PAUSED_BLINK_MIN_ALPHA = 0.2f
 
 /**
  * Transparent top bar for [RecordScreen] displaying the session timer and compact Auto AI toggle.
+ * The duration text blinks while [isPaused] is true.
  */
 @Composable
 fun RecordTopBar(
-    bufferedSeconds: Int,
+    sessionSeconds: Int,
     autoAiEnabled: Boolean,
     onAutoAiChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    isPaused: Boolean = false,
 ) {
+    val durationAlpha = if (isPaused) {
+        rememberInfiniteTransition(label = "dur_paused_blink").animateFloat(
+            initialValue = 1f,
+            targetValue = PAUSED_BLINK_MIN_ALPHA,
+            animationSpec = infiniteRepeatable(
+                animation = tween(PAUSED_BLINK_DURATION_MILLIS, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "dur_paused_blink_alpha",
+        ).value
+    } else {
+        1f
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -126,11 +150,12 @@ fun RecordTopBar(
                     fontSize = 10.sp,
                 )
                 Text(
-                    text = formatTimerSeconds(bufferedSeconds),
+                    text = formatTimerSeconds(sessionSeconds),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
+                    modifier = Modifier.alpha(durationAlpha),
                 )
             }
         }
@@ -184,7 +209,9 @@ fun RecordScreen(
     onSimulateKnock: () -> Unit = {},
     notes: List<Note> = emptyList(),
     onSelectNote: (Note) -> Unit = {},
+    captureEvents: Flow<Unit>? = null,
 ) {
+    val haptic = LocalHapticFeedback.current
     var isButtonInPosition by remember { mutableStateOf(recordingUiState.isRecording) }
     var isContentVisible by remember { mutableStateOf(recordingUiState.isRecording) }
 
@@ -260,9 +287,10 @@ fun RecordScreen(
             containerColor = Color.Transparent,
             topBar = {
                 RecordTopBar(
-                    bufferedSeconds = recordingUiState.bufferedSeconds,
+                    sessionSeconds = recordingUiState.sessionSeconds,
                     autoAiEnabled = autoAiEnabled,
                     onAutoAiChanged = onAutoAiChanged,
+                    isPaused = recordingUiState.isPaused,
                     modifier = Modifier.graphicsLayer {
                         alpha = contentAlpha
                         translationY = -contentOffsetY.dp.toPx()
@@ -318,9 +346,13 @@ fun RecordScreen(
                     isRecording = recordingUiState.isRecording,
                     isSavingSnapshot = recordingUiState.isSavingSnapshot,
                     canCapture = recordingUiState.canCapture,
+                    captureEvents = captureEvents,
                     onClick = {
                         if (recordingUiState.isRecording) {
                             onManualSave()
+                            if (recordingUiState.canCapture) {
+                                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                            }
                         } else {
                             onStartSession()
                         }
@@ -358,15 +390,9 @@ fun RecordScreen(
                             textAlign = TextAlign.Center,
                         )
 
-                        Text(
-                            text = stringResource(
-                                R.string.recording_buffer_status,
-                                formatBufferTime(recordingUiState.bufferedSeconds),
-                                formatBufferTime(recordingUiState.maxBufferSeconds),
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = AccentGold,
-                            textAlign = TextAlign.Center,
+                        BufferStatusText(
+                            bufferedSeconds = recordingUiState.bufferedSeconds,
+                            maxBufferSeconds = recordingUiState.maxBufferSeconds,
                         )
 
                         Text(
@@ -461,6 +487,46 @@ fun RecordScreen(
             }
         }
     }
+}
+
+/**
+ * Buffer status label that pulses [MaterialTheme.colorScheme.error] when the ring buffer
+ * evicts the oldest audio (buffered seconds drop while staying above zero). Drops to zero
+ * mark a snapshot save and do not blink.
+ */
+@Composable
+private fun BufferStatusText(
+    bufferedSeconds: Int,
+    maxBufferSeconds: Int,
+    modifier: Modifier = Modifier,
+) {
+    val errorColor = MaterialTheme.colorScheme.error
+    val blinkColor = remember {
+        Animatable(AccentGold, Color.VectorConverter(AccentGold.colorSpace))
+    }
+    var previousBufferedSeconds by remember { mutableIntStateOf(bufferedSeconds) }
+
+    LaunchedEffect(bufferedSeconds) {
+        if (bufferedSeconds < previousBufferedSeconds && bufferedSeconds > 0) {
+            repeat(EVICTION_BLINK_PULSE_COUNT) {
+                blinkColor.animateTo(errorColor, tween(EVICTION_BLINK_DURATION_MILLIS))
+                blinkColor.animateTo(AccentGold, tween(EVICTION_BLINK_DURATION_MILLIS))
+            }
+        }
+        previousBufferedSeconds = bufferedSeconds
+    }
+
+    Text(
+        text = stringResource(
+            R.string.recording_buffer_status,
+            formatBufferTime(bufferedSeconds),
+            formatBufferTime(maxBufferSeconds),
+        ),
+        style = MaterialTheme.typography.bodyMedium,
+        color = blinkColor.value,
+        textAlign = TextAlign.Center,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -678,6 +744,7 @@ fun RecordScreen(
         onSimulateKnock = recordingViewModel::triggerManualSave,
         notes = notes,
         onSelectNote = onSelectNote,
+        captureEvents = recordingViewModel.gestureCaptures,
     )
 }
 
@@ -688,6 +755,7 @@ private fun RecordScreenPreview() {
         RecordScreen(
             recordingUiState = KnockRecordingUiState(
                 isRecording = true,
+                sessionSeconds = 222,
                 bufferedSeconds = 222,
                 maxBufferSeconds = 300,
                 level = 0.65f,
@@ -708,9 +776,21 @@ private fun RecordScreenPreview() {
 private fun RecordTopBarPreview() {
     KnockledgeTheme {
         RecordTopBar(
-            bufferedSeconds = 222,
+            sessionSeconds = 222,
             autoAiEnabled = true,
             onAutoAiChanged = {},
+            isPaused = true,
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0D0E15)
+@Composable
+private fun BufferStatusTextPreview() {
+    KnockledgeTheme {
+        BufferStatusText(
+            bufferedSeconds = 222,
+            maxBufferSeconds = 300,
         )
     }
 }

@@ -1,5 +1,6 @@
 package group.two.knockledge.ui
 
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -8,6 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 data class KnockRecordingUiState(
     val isRecording: Boolean = false,
     val isPaused: Boolean = false,
+    /** Seconds elapsed in the current session, excluding paused time. */
+    val sessionSeconds: Int = 0,
     val bufferedSeconds: Int = 0,
     val maxBufferSeconds: Int = 300,
     val isGestureActive: Boolean = false,
@@ -26,6 +29,9 @@ data class KnockRecordingUiState(
 interface KnockRecordingController {
     /** Current recording UI state. */
     val uiState: StateFlow<KnockRecordingUiState>
+
+    /** Emits once for each knock-gesture capture so the capture button can replay its animation. */
+    val gestureCaptures: SharedFlow<Unit>
 
     /** Starts buffering audio and gesture detection. */
     fun startSession()
