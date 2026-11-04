@@ -70,6 +70,10 @@ class AudioPlaybackViewModel @Inject constructor(
         audioPlayer.seekTo(chapter.startTimeMs)
     }
 
+    override fun pausePlayback() {
+        audioPlayer.pause()
+    }
+
     override fun onCleared() {
         super.onCleared()
         audioPlayer.stop()

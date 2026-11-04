@@ -54,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,6 +80,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.compose.ui.unit.sp
 import group.two.knockledge.R
 import group.two.knockledge.audio.AudioPlaybackState
@@ -93,8 +98,8 @@ import group.two.knockledge.data.model.TranscriptionEngineType
 import group.two.knockledge.data.model.TriggerType
 import group.two.knockledge.data.model.AiEngineType
 import group.two.knockledge.pipeline.RewindStage
-import group.two.knockledge.ui.processing.NoteAiProcessingState
-import group.two.knockledge.ui.processing.NoteProcessingUiState
+import group.two.knockledge.pipeline.NoteAiProcessingState
+import group.two.knockledge.pipeline.NoteProcessingUiState
 import group.two.knockledge.ui.theme.AccentGold
 import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.BurnishedBronze
@@ -150,11 +155,25 @@ fun AudioPlaybackScreen(
     onDeleteClick: (() -> Unit)? = null,
     onRename: ((String) -> Unit)? = null,
     onProcessWithAi: (() -> Unit)? = null,
+    onStopAiProcessing: (() -> Unit)? = null,
     processingUiState: NoteProcessingUiState? = null,
     initialTab: AudioPlaybackTab = AudioPlaybackTab.TRANSCRIPT,
 ) {
     LaunchedEffect(note.id) {
         playbackViewModel.loadNote(note, autoPlay = false)
+    }
+
+    val view = LocalView.current
+    DisposableEffect(view, playbackViewModel) {
+        val owner = view.findViewTreeLifecycleOwner()
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) playbackViewModel.pausePlayback()
+        }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose {
+            owner?.lifecycle?.removeObserver(observer)
+            playbackViewModel.onCleared()
+        }
     }
 
     val playbackState by playbackViewModel.playbackState.collectAsState()
@@ -170,6 +189,7 @@ fun AudioPlaybackScreen(
         onDeleteClick = onDeleteClick,
         onRename = onRename,
         onProcessWithAi = onProcessWithAi,
+        onStopAiProcessing = onStopAiProcessing,
         processingUiState = processingUiState,
         initialTab = initialTab,
     )
@@ -209,6 +229,7 @@ fun AudioPlaybackScreen(
     onDeleteClick: (() -> Unit)? = null,
     onRename: ((String) -> Unit)? = null,
     onProcessWithAi: (() -> Unit)? = null,
+    onStopAiProcessing: (() -> Unit)? = null,
     processingUiState: NoteProcessingUiState? = null,
     initialTab: AudioPlaybackTab = AudioPlaybackTab.TRANSCRIPT,
 ) {
@@ -295,6 +316,8 @@ fun AudioPlaybackScreen(
                             AudioSummaryView(
                                 summary = note.summary,
                                 onProcessWithAi = onProcessWithAi,
+                                onStopProcessing = onStopAiProcessing,
+                                onDelete = onDeleteClick,
                                 isProcessing = isProcessingThisNote,
                                 processingStage = stageThisNote,
                                 isFailed = isFailedThisNote,
@@ -309,6 +332,8 @@ fun AudioPlaybackScreen(
                                 currentPositionMs = playbackState.currentPositionMs,
                                 onSeekTo = onSeekTo,
                                 onProcessWithAi = onProcessWithAi,
+                                onStopProcessing = onStopAiProcessing,
+                                onDelete = onDeleteClick,
                                 isProcessing = isProcessingThisNote,
                                 processingStage = stageThisNote,
                                 isFailed = isFailedThisNote,
@@ -571,6 +596,7 @@ private fun SegmentedPillTabs(
 @Composable
 private fun AiProcessingBanner(
     processingStage: RewindStage?,
+    onStopProcessing: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -607,12 +633,28 @@ private fun AiProcessingBanner(
                         color = ParchmentCream,
                     )
                 }
-                Text(
-                    text = stringResource(R.string.badge_processing),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = WaveformTeal,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.badge_processing),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WaveformTeal,
+                    )
+                    if (onStopProcessing != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(
+                            onClick = onStopProcessing,
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.processing_stop),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                }
             }
             LinearProgressIndicator(
                 modifier = Modifier
@@ -634,6 +676,7 @@ private fun AiStatusBanner(
     isSkipped: Boolean,
     errorMessage: String?,
     onRetry: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val isLengthError = errorMessage?.contains("speech", ignoreCase = true) == true ||
@@ -685,18 +728,32 @@ private fun AiStatusBanner(
                     color = MutedSand,
                 )
             }
-            if (onRetry != null) {
+            if (onRetry != null || (isSkipped && onDelete != null)) {
                 Spacer(modifier = Modifier.width(8.dp))
-                OutlinedButton(
-                    onClick = onRetry,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.retry),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
+                Column(horizontalAlignment = Alignment.End) {
+                    if (onRetry != null) {
+                        OutlinedButton(
+                            onClick = onRetry,
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.retry),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                    if (isSkipped && onDelete != null) {
+                        TextButton(onClick = onDelete) {
+                            Text(
+                                text = stringResource(R.string.delete_note),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -712,6 +769,8 @@ private fun AiEmptyOrProcessingView(
     title: String,
     subtitle: String,
     onProcessWithAi: (() -> Unit)?,
+    onStopProcessing: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
     isProcessing: Boolean,
     processingStage: RewindStage?,
     isFailed: Boolean,
@@ -801,6 +860,23 @@ private fun AiEmptyOrProcessingView(
                         color = AccentGold,
                         trackColor = AntiqueBrass.copy(alpha = 0.2f),
                     )
+                    if (onStopProcessing != null) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        OutlinedButton(
+                            onClick = onStopProcessing,
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, OutlineVariant),
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .height(48.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.processing_stop),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
                 }
 
                 isFailed || isSkipped -> {
@@ -880,6 +956,17 @@ private fun AiEmptyOrProcessingView(
                             )
                         }
                     }
+                    if (isSkipped && onDelete != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        TextButton(onClick = onDelete) {
+                            Text(
+                                text = stringResource(R.string.delete_note),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
 
                 else -> {
@@ -942,6 +1029,8 @@ private fun AiEmptyOrProcessingView(
 private fun AudioSummaryView(
     summary: SummaryMetadata?,
     onProcessWithAi: (() -> Unit)?,
+    onStopProcessing: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
     isProcessing: Boolean,
     processingStage: RewindStage?,
     isFailed: Boolean,
@@ -954,6 +1043,8 @@ private fun AudioSummaryView(
             title = stringResource(R.string.no_summary),
             subtitle = stringResource(R.string.summary_empty_subtitle),
             onProcessWithAi = onProcessWithAi,
+            onStopProcessing = onStopProcessing,
+            onDelete = onDelete,
             isProcessing = isProcessing,
             processingStage = processingStage,
             isFailed = isFailed,
@@ -971,7 +1062,7 @@ private fun AudioSummaryView(
     ) {
         if (isProcessing) {
             item {
-                AiProcessingBanner(processingStage = processingStage)
+                AiProcessingBanner(processingStage = processingStage, onStopProcessing = onStopProcessing)
             }
         } else if (isFailed || isSkipped) {
             item {
@@ -979,6 +1070,7 @@ private fun AudioSummaryView(
                     isSkipped = isSkipped,
                     errorMessage = errorMessage,
                     onRetry = onProcessWithAi,
+                    onDelete = onDelete,
                 )
             }
         }
@@ -1070,6 +1162,8 @@ private fun AudioTranscriptView(
     currentPositionMs: Long,
     onSeekTo: (Long) -> Unit,
     onProcessWithAi: (() -> Unit)?,
+    onStopProcessing: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
     isProcessing: Boolean,
     processingStage: RewindStage?,
     isFailed: Boolean,
@@ -1098,6 +1192,8 @@ private fun AudioTranscriptView(
             title = stringResource(R.string.no_transcript),
             subtitle = stringResource(R.string.transcript_empty_subtitle),
             onProcessWithAi = onProcessWithAi,
+            onStopProcessing = onStopProcessing,
+            onDelete = onDelete,
             isProcessing = isProcessing,
             processingStage = processingStage,
             isFailed = isFailed,
@@ -1137,7 +1233,7 @@ private fun AudioTranscriptView(
     ) {
         if (isProcessing) {
             item {
-                AiProcessingBanner(processingStage = processingStage)
+                AiProcessingBanner(processingStage = processingStage, onStopProcessing = onStopProcessing)
             }
         } else if (isFailed || isSkipped) {
             item {
@@ -1145,6 +1241,7 @@ private fun AudioTranscriptView(
                     isSkipped = isSkipped,
                     errorMessage = errorMessage,
                     onRetry = onProcessWithAi,
+                    onDelete = onDelete,
                 )
             }
         }

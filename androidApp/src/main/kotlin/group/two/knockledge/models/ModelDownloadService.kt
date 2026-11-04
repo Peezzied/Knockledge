@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -31,6 +33,11 @@ class ModelDownloadService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val notifications by lazy { getSystemService(NotificationManager::class.java) }
+
+    /** App logo shown as the notification large icon; decoded once, reused per progress update. */
+    private val appIcon: Bitmap by lazy {
+        BitmapFactory.decodeResource(resources, R.drawable.ic_launcher_foreground)
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -79,6 +86,7 @@ class ModelDownloadService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_knockledge)
+            .setLargeIcon(appIcon)
             .setContentTitle(getString(R.string.notification_title_model_download))
             .setProgress(100, (fraction * 100).toInt(), false)
             .setOngoing(true)

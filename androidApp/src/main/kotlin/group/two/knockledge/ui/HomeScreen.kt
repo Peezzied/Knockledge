@@ -125,8 +125,8 @@ import group.two.knockledge.ui.auth.AuthViewModel
 import group.two.knockledge.ui.notes.NoteListViewModel
 import group.two.knockledge.ui.playback.AudioPlaybackScreen
 import group.two.knockledge.ui.playback.AudioPlaybackViewModel
+import group.two.knockledge.pipeline.NoteProcessingUiState
 import group.two.knockledge.ui.processing.NoteProcessingControls
-import group.two.knockledge.ui.processing.NoteProcessingUiState
 import group.two.knockledge.ui.processing.NoteProcessingViewModel
 import group.two.knockledge.ui.settings.ModelManagementViewModel
 import group.two.knockledge.ui.settings.SettingsScreen
@@ -645,7 +645,10 @@ fun NoteListItem(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
                                         strokeWidth = 2.dp,
@@ -992,6 +995,8 @@ fun CassettePlayKeyButton(
 /**
  * Floating Recording Button reproducing the RecordTab circle button verbatim with a diagonal wave dot animation
  * and a center pull animation on click before navigating to RecordScreen.
+ *
+ * @param isRecording When a recording session is running, the cassette hub spins and the rings turn red.
  */
 @Composable
 fun RecordFloatingActionButton(
@@ -1002,6 +1007,7 @@ fun RecordFloatingActionButton(
     val scope = rememberCoroutineScope()
     val pullProgress = remember { Animatable(0f) }
     var isTriggered by remember { mutableStateOf(false) }
+    val ringColor = if (isRecording) MaterialTheme.colorScheme.error else AccentGold
 
     val infiniteTransition = rememberInfiniteTransition(label = "diagonalWave")
     val waveProgress by infiniteTransition.animateFloat(
@@ -1088,7 +1094,7 @@ fun RecordFloatingActionButton(
                 PixelatedRing(
                     radius = 36.dp,
                     pixelSize = 3.dp,
-                    color = AccentGold.copy(alpha = 0.85f),
+                    color = ringColor.copy(alpha = 0.85f),
                     modifier = Modifier.size(76.dp),
                     isDotted = false,
                     waveProgress = waveProgress,
@@ -1098,7 +1104,7 @@ fun RecordFloatingActionButton(
                 PixelatedRing(
                     radius = 28.dp,
                     pixelSize = 3.dp,
-                    color = AccentGold.copy(alpha = 0.55f),
+                    color = ringColor.copy(alpha = 0.55f),
                     modifier = Modifier.size(60.dp),
                     isDotted = false,
                     waveProgress = waveProgress,
@@ -1492,6 +1498,7 @@ fun LiveTestAppShell(
     val audioPlayer = remember(component) { component.audioPlayer() }
     val pipeline = remember(component) { component.pipeline() }
     val aiNotifier = remember(component) { component.aiNotificationNotifier() }
+    val aiTracker = remember(component) { component.aiProcessingTracker() }
 
     val recordingViewModel = remember(component, graph, appSettings) {
         KnockRecordingViewModel(graph.controller, appSettings)
@@ -1500,8 +1507,8 @@ fun LiveTestAppShell(
         AudioPlaybackViewModel(audioPlayer)
     }
     val context = LocalContext.current
-    val processingViewModel = remember(component, dataGraph, pipeline, aiNotifier) {
-        NoteProcessingViewModel(dataGraph.notes, dataGraph.auth, pipeline, aiNotifier, appContext = context.applicationContext)
+    val processingViewModel = remember(component, dataGraph, pipeline, aiNotifier, aiTracker) {
+        NoteProcessingViewModel(dataGraph.notes, dataGraph.auth, pipeline, aiNotifier, appContext = context.applicationContext, tracker = aiTracker)
     }
     val settingsViewModel = remember(component, appSettings) {
         SettingsViewModel(appSettings)
@@ -1770,6 +1777,7 @@ fun LiveTestAppShell(
                             autoAiEnabled = autoAiEnabled,
                             onAutoAiChanged = settingsViewModel::setAutoAiEnabled,
                             notes = notes,
+                            processingUiState = processingUiState,
                             onSelectNote = { note ->
                                 selectedNoteId = note.id
                                 playbackViewModel.loadNote(note, autoPlay = false)
@@ -1923,6 +1931,7 @@ fun LiveTestAppShell(
                                 onProcessWithAi = {
                                     processingViewModel.processNote(noteForPlayback.id)
                                 },
+                                onStopAiProcessing = processingViewModel::stopProcessing,
                                 processingUiState = processingUiState,
                                 modifier = Modifier.fillMaxSize(),
                             )

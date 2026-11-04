@@ -1,5 +1,6 @@
 package group.two.knockledge.pipeline
 
+import android.util.Log
 import group.two.knockledge.ai.EngineError
 import group.two.knockledge.audio.AudioConditioner
 import group.two.knockledge.settings.AppSettings
@@ -17,7 +18,7 @@ class CompositeTranscriber(
     private val offline: TranscriptionEngine,
     private val isOnline: () -> Boolean,
     private val mode: () -> String = { AppSettings.MODE_AUTO },
-    private val timeoutMillis: Long = 10_000,
+    private val timeoutMillis: Long = 120_000,
 ) : Transcriber {
     /** Conditions [pcm], then transcribes online if possible and offline otherwise. */
     override suspend fun transcribe(pcm: ShortArray, sampleRate: Int): TranscriptResult {
@@ -29,12 +30,12 @@ class CompositeTranscriber(
         val currentMode = mode()
 
         if (currentMode == AppSettings.MODE_LOCAL) {
-            return offline.process(segment)
+            return run(offline, segment)
         }
 
         if (currentMode == AppSettings.MODE_ONLINE || (currentMode == AppSettings.MODE_AUTO && isOnline())) {
             try {
-                return withTimeout(timeoutMillis) { online.process(segment) }
+                return withTimeout(timeoutMillis) { run(online, segment) }
             } catch (e: CancellationException) {
                 if (e !is kotlinx.coroutines.TimeoutCancellationException) throw e
             } catch (e: Exception) {
@@ -42,13 +43,31 @@ class CompositeTranscriber(
             }
         }
         try {
-            return offline.process(segment)
+            return run(offline, segment)
         } catch (e: EngineError) {
             // A broken local engine in Auto mode still has the cloud to fall back on.
             if (currentMode == AppSettings.MODE_AUTO && isOnline()) {
-                return online.process(segment)
+                return run(online, segment)
             }
             throw e
         }
+    }
+
+    /** Runs [engine] bracketed by logcat lines naming the engine, for AI-processing audits. */
+    private suspend fun run(engine: TranscriptionEngine, segment: AudioSegment): TranscriptResult {
+        audit("transcription start: engine=${engine.engineType}")
+        return try {
+            engine.process(segment).also { audit("transcription end: engine=${it.engineType}") }
+        } catch (e: Exception) {
+            audit("transcription failed: engine=${engine.engineType}, ${e.javaClass.simpleName}")
+            throw e
+        }
+    }
+
+    /** android.util.Log is stubbed on the JVM unit test classpath; ignore failures there. */
+    private fun audit(message: String) = runCatching { Log.i(TAG, message) }
+
+    private companion object {
+        const val TAG = "AiAudit"
     }
 }

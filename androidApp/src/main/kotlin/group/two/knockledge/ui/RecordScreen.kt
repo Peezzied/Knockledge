@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -71,11 +70,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import group.two.knockledge.R
 import group.two.knockledge.data.model.Note
+import group.two.knockledge.pipeline.NoteProcessingUiState
 import group.two.knockledge.ui.theme.AccentGold
 import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.KnockledgeTheme
@@ -98,10 +99,16 @@ private const val EVICTION_BLINK_PULSE_COUNT = 2
 private const val EVICTION_BLINK_DURATION_MILLIS = 150
 private const val PAUSED_BLINK_DURATION_MILLIS = 500
 private const val PAUSED_BLINK_MIN_ALPHA = 0.2f
+private const val CAPTURE_CARD_ARRIVAL_OFFSET_DP = 56
+private const val CAPTURE_CARD_ARRIVAL_SCALE = 0.92f
+private const val CAPTURE_CARD_BEHIND_OFFSET_DP = 34
+private const val CAPTURE_CARD_BEHIND_SCALE = 0.94f
+private const val CAPTURE_CARD_BEHIND_ALPHA = 0.60f
+private const val CAPTURE_CARD_RECEDE_DURATION_MILLIS = 300
 
 /**
  * Transparent top bar for [RecordScreen] displaying the session timer and compact Auto AI toggle.
- * The duration text blinks while [isPaused] is true.
+ * The record dot and duration text blink while [isPaused] is true.
  */
 @Composable
 fun RecordTopBar(
@@ -142,6 +149,14 @@ fun RecordTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error)
+                        .alpha(durationAlpha),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "DUR ",
                     style = MaterialTheme.typography.labelSmall,
@@ -210,6 +225,7 @@ fun RecordScreen(
     notes: List<Note> = emptyList(),
     onSelectNote: (Note) -> Unit = {},
     captureEvents: Flow<Unit>? = null,
+    processingUiState: NoteProcessingUiState? = null,
 ) {
     val haptic = LocalHapticFeedback.current
     var isButtonInPosition by remember { mutableStateOf(recordingUiState.isRecording) }
@@ -424,6 +440,7 @@ fun RecordScreen(
                         notes = notes,
                         onSelectNote = onSelectNote,
                         onNavigateToHome = onNavigateToHome,
+                        processingUiState = processingUiState,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -557,6 +574,7 @@ fun CaptureRowCard(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f),
         ) {
             Box(
                 modifier = Modifier
@@ -576,10 +594,15 @@ fun CaptureRowCard(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.weight(1f),
+            ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     color = ParchmentCream,
                 )
                 Text(
@@ -608,37 +631,64 @@ fun CaptureRowCard(
     }
 }
 
+/**
+ * Two-card deck showing the newest capture in front and the previous one receded behind it.
+ * When a new note arrives, the incoming front card drops in with a settle spring while the
+ * displaced card slides down, shrinks, and dims into the behind slot.
+ */
 @Composable
 fun StackedCaptureDeck(
     notes: List<Note> = emptyList(),
     onSelectNote: (Note) -> Unit = {},
     onNavigateToHome: () -> Unit = {},
     modifier: Modifier = Modifier,
+    processingUiState: NoteProcessingUiState? = null,
 ) {
-    val frontNote = notes.getOrNull(0)
+    val frontNote = notes.firstOrNull()
     val behindNote = notes.getOrNull(1)
 
-    val frontTitle = frontNote?.title?.ifBlank { "Untitled Note" } ?: "Photosynthesis"
-    val frontDate = frontNote?.let { formatNoteDate(it.createdAtEpochMs) } ?: "OCT21 12:04"
-    val frontDuration = frontNote?.let { formatNoteDuration(it.audio.durationMs) } ?: "0:25"
-    val frontStatus = frontNote?.let {
-        if (it.summary != null || it.transcript != null) {
-            stringResource(R.string.processed_label)
-        } else {
-            stringResource(R.string.unprocessed_label)
-        }
-    } ?: stringResource(R.string.unprocessed_label)
+    // Track note ids so the arrival and recede animations fire only on real
+    // captures, never on first composition or content-only updates.
+    val cardArrival = remember { Animatable(1f) }
+    val cardRecede = remember { Animatable(1f) }
+    var previousFrontId by remember { mutableStateOf(frontNote?.id) }
+    var previousBehindId by remember { mutableStateOf(behindNote?.id) }
 
-    val behindTitle = behindNote?.title?.ifBlank { "Untitled Note" } ?: "Cell Division"
-    val behindDate = behindNote?.let { formatNoteDate(it.createdAtEpochMs) } ?: "OCT20 16:30"
-    val behindDuration = behindNote?.let { formatNoteDuration(it.audio.durationMs) } ?: "0:42"
-    val behindStatus = behindNote?.let {
-        if (it.summary != null || it.transcript != null) {
-            stringResource(R.string.processed_label)
-        } else {
-            stringResource(R.string.unprocessed_label)
+    LaunchedEffect(frontNote?.id) {
+        if (frontNote?.id != previousFrontId) {
+            previousFrontId = frontNote?.id
+            if (frontNote != null) {
+                cardArrival.snapTo(0f)
+                cardArrival.animateTo(
+                    1f,
+                    spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                )
+            }
         }
-    } ?: stringResource(R.string.processed_label)
+    }
+
+    LaunchedEffect(behindNote?.id) {
+        if (behindNote?.id != previousBehindId) {
+            previousBehindId = behindNote?.id
+            if (behindNote != null) {
+                cardRecede.snapTo(0f)
+                cardRecede.animateTo(
+                    1f,
+                    tween(CAPTURE_CARD_RECEDE_DURATION_MILLIS, easing = FastOutSlowInEasing),
+                )
+            }
+        }
+    }
+
+    if (frontNote == null) return
+
+    val frontTitle = frontNote.title.ifBlank { "Untitled Note" }
+    val frontDate = formatNoteDate(frontNote.createdAtEpochMs)
+    val frontDuration = formatNoteDuration(frontNote.audio.durationMs)
+    val frontStatus = stringResource(captureStatusLabelRes(frontNote, processingUiState))
 
     Box(
         modifier = modifier
@@ -646,19 +696,29 @@ fun StackedCaptureDeck(
             .padding(bottom = 28.dp),
         contentAlignment = Alignment.TopCenter,
     ) {
-        CaptureRowCard(
-            title = behindTitle,
-            date = behindDate,
-            duration = behindDuration,
-            status = behindStatus,
-            onClick = {
-                onNavigateToHome()
-            },
-            modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .offset(y = 34.dp)
-                .alpha(0.60f),
-        )
+        if (behindNote != null) {
+            CaptureRowCard(
+                title = behindNote.title.ifBlank { "Untitled Note" },
+                date = formatNoteDate(behindNote.createdAtEpochMs),
+                duration = formatNoteDuration(behindNote.audio.durationMs),
+                status = stringResource(captureStatusLabelRes(behindNote, processingUiState)),
+                onClick = {
+                    onNavigateToHome()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        val progress = cardRecede.value
+                        alpha = CAPTURE_CARD_BEHIND_ALPHA +
+                            (1f - CAPTURE_CARD_BEHIND_ALPHA) * (1f - progress)
+                        translationY = CAPTURE_CARD_BEHIND_OFFSET_DP.dp.toPx() * progress
+                        val scale = CAPTURE_CARD_BEHIND_SCALE +
+                            (1f - CAPTURE_CARD_BEHIND_SCALE) * (1f - progress)
+                        scaleX = scale
+                        scaleY = scale
+                    },
+            )
+        }
 
         CaptureRowCard(
             title = frontTitle,
@@ -666,16 +726,32 @@ fun StackedCaptureDeck(
             duration = frontDuration,
             status = frontStatus,
             onClick = {
-                if (frontNote != null) {
-                    onSelectNote(frontNote)
-                }
+                onSelectNote(frontNote)
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(y = 0.dp),
+                .graphicsLayer {
+                    val progress = cardArrival.value
+                    alpha = progress
+                    translationY = (1f - progress) * CAPTURE_CARD_ARRIVAL_OFFSET_DP.dp.toPx()
+                    val scale = CAPTURE_CARD_ARRIVAL_SCALE +
+                        (1f - CAPTURE_CARD_ARRIVAL_SCALE) * progress
+                    scaleX = scale
+                    scaleY = scale
+                },
         )
     }
 }
+
+/** A capture shows as processed once AI output is attached or the shared AI tracker succeeded for it. */
+private fun captureStatusLabelRes(note: Note, processingUiState: NoteProcessingUiState?): Int =
+    if (note.summary != null || note.transcript != null ||
+        (processingUiState?.noteId == note.id && processingUiState.isSuccess)
+    ) {
+        R.string.processed_label
+    } else {
+        R.string.unprocessed_label
+    }
 
 private fun formatNoteDate(epochMs: Long): String {
     val sdf = java.text.SimpleDateFormat("MMMdd HH:mm", Locale.US)
@@ -716,6 +792,7 @@ fun RecordScreen(
     onAutoAiChanged: (Boolean) -> Unit = {},
     notes: List<Note> = emptyList(),
     onSelectNote: (Note) -> Unit = {},
+    processingUiState: NoteProcessingUiState? = null,
 ) {
     val recordingUiState by recordingViewModel.uiState.collectAsState()
 
@@ -745,6 +822,7 @@ fun RecordScreen(
         notes = notes,
         onSelectNote = onSelectNote,
         captureEvents = recordingViewModel.gestureCaptures,
+        processingUiState = processingUiState,
     )
 }
 
@@ -767,6 +845,21 @@ private fun RecordScreenPreview() {
             onManualSave = {},
             onRequestPermission = {},
             onNavigateToHome = {},
+            notes = listOf(
+                Note(
+                    id = "preview-note",
+                    userId = "preview-user",
+                    title = "Photosynthesis",
+                    createdAtEpochMs = 0L,
+                    updatedAtEpochMs = 0L,
+                    audio = group.two.knockledge.data.model.AudioMetadata(
+                        localPath = "",
+                        durationMs = 25_000L,
+                        sampleRate = 16000,
+                        triggerType = group.two.knockledge.data.model.TriggerType.MANUAL,
+                    ),
+                ),
+            ),
         )
     }
 }

@@ -6,6 +6,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import group.two.knockledge.MainActivity
 import group.two.knockledge.R
 import javax.inject.Inject
@@ -43,6 +45,11 @@ class AndroidAiNotificationNotifier @Inject constructor(
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
+    /** App logo shown as the notification large icon; decoded once. */
+    private val appIcon: Bitmap by lazy {
+        BitmapFactory.decodeResource(context.resources, R.drawable.ic_launcher_foreground)
+    }
+
     override fun notifyAiComplete(title: String, summaryText: String) {
         createNotificationChannel()
 
@@ -58,6 +65,7 @@ class AndroidAiNotificationNotifier @Inject constructor(
 
         val notification = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_knockledge)
+            .setLargeIcon(appIcon)
             .setContentTitle(displayTitle)
             .setContentText(displayText)
             .setStyle(Notification.BigTextStyle().bigText(displayText))

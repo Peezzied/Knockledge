@@ -1279,6 +1279,7 @@ private fun GestureTestCard(
                 coroutineScope.launch {
                     handleKnock()
                 }
+                true
             }
         } else {
             knockDetector.stopListening()

@@ -33,6 +33,11 @@ interface AudioPlaybackController {
     fun selectChapter(chapter: ChapterMarker)
 
     /**
+     * Pauses playback while preserving position, e.g. when the app is backgrounded.
+     */
+    fun pausePlayback()
+
+    /**
      * Releases playback resources when the screen is closed or navigated away from.
      */
     fun onCleared()

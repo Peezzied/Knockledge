@@ -1,5 +1,6 @@
 package group.two.knockledge.pipeline
 
+import android.util.Log
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -20,8 +21,12 @@ class SileroAudioPreprocessor(
 
     override fun process(pcm: ShortArray, sampleRate: Int): AudioPreprocessResult {
         val normalized = AudioPreprocessor.normalizeTo16kMono(pcm, sampleRate)
-        if (normalized.isEmpty()) return AudioPreprocessResult.InsufficientSpeech(0L)
         val targetRate = AudioPreprocessor.TARGET_SAMPLE_RATE
+        val originalMillis = normalized.size * 1_000L / targetRate
+        if (normalized.isEmpty()) {
+            audit("preprocess: rejected, empty input")
+            return AudioPreprocessResult.InsufficientSpeech(0L)
+        }
         val speech = vadDetector.detect(normalized, targetRate)
         val maxGapSamples = (config.maxDeadAirGapMillis * targetRate / 1_000).toInt()
         val paddingSamples = (config.silencePaddingMillis * targetRate / 1_000).toInt()
@@ -49,16 +54,29 @@ class SileroAudioPreprocessor(
 
         val speechMillis = speechSamples * 1_000L / targetRate
         if (speechMillis < config.minSpeechDurationMillis) {
+            audit("preprocess: rejected, ${speechMillis}ms speech in ${originalMillis}ms audio")
             return AudioPreprocessResult.InsufficientSpeech(speechMillis)
         }
 
         val trimmed = out.copyOf(outSize)
         normalizePeak(trimmed)
+        val keptMillis = trimmed.size * 1_000L / targetRate
+        audit(
+            "preprocess: kept ${keptMillis}ms of ${originalMillis}ms, " +
+                "stripped ${originalMillis - keptMillis}ms (${(originalMillis - keptMillis) * 100 / originalMillis}%)",
+        )
         return AudioPreprocessResult.Success(
             pcm = trimmed,
-            durationMillis = trimmed.size * 1_000L / targetRate,
+            durationMillis = keptMillis,
             sampleRate = targetRate,
         )
+    }
+
+    /** android.util.Log is stubbed on the JVM unit test classpath; ignore failures there. */
+    private fun audit(message: String) = runCatching { Log.i(TAG, message) }
+
+    private companion object {
+        const val TAG = "AiAudit"
     }
 
     /** Scales [pcm] in place so its peak lands on [SileroVadConfig.targetPeakAmplitude]. */

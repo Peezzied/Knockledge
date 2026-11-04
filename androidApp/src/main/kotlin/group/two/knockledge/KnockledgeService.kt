@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
@@ -162,6 +164,11 @@ class KnockledgeService : Service() {
     private var cacheReplaced = false
     private val notifications by lazy { getSystemService(NOTIFICATION_SERVICE) as NotificationManager }
 
+    /** App logo shown as the notification large icon; decoded once, reused per re-post. */
+    private val appIcon: Bitmap by lazy {
+        BitmapFactory.decodeResource(resources, R.drawable.ic_launcher_foreground)
+    }
+
     /** Not bound: the notification is the only interface. */
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -192,11 +199,9 @@ class KnockledgeService : Service() {
             ACTION_CANCEL_STOP -> revertToNormal()
             ACTION_REWIND -> {
                 revertJob?.cancel()
-                // Only flash "Saved" when a save is actually possible; rewind() is a
-                // no-op until the minimum buffer is ready, so don't claim a clip.
-                val canSave = controller.state.value.canRewind
-                controller.rewind(TriggerType.MANUAL)
-                if (canSave) {
+                // Only flash "Saved" when a save is actually possible; rewind() returns
+                // false until the minimum buffer is ready, so don't claim a clip.
+                if (controller.rewind(TriggerType.MANUAL)) {
                     setTransientMode(NotificationMode.SAVED, SAVED_FEEDBACK_MILLIS)
                 } else {
                     mode.value = NotificationMode.NORMAL
@@ -307,6 +312,7 @@ class KnockledgeService : Service() {
 
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_knockledge)
+            .setLargeIcon(appIcon)
             .setStyle(Notification.DecoratedCustomViewStyle())
             .setCustomContentView(compact)
             .setCustomBigContentView(expanded)
@@ -435,6 +441,7 @@ class KnockledgeService : Service() {
         }
         val notification = NotificationCompat.Builder(this, START_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_knockledge)
+            .setLargeIcon(appIcon)
             .setContentTitle("Recording Started")
             .setContentText("Cache recording has started.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
