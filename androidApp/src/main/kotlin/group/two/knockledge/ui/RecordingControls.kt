@@ -1,31 +1,17 @@
 package group.two.knockledge.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import group.two.knockledge.R
-import group.two.knockledge.ui.theme.AccentGold
-import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.KnockledgeTheme
-import group.two.knockledge.ui.theme.ObsidianMidnight
 import group.two.knockledge.ui.theme.ParchmentCream
-import group.two.knockledge.ui.theme.TextInk
 import group.two.knockledge.ui.theme.WaveformPink
 import group.two.knockledge.ui.theme.WaveformTeal
 
@@ -98,115 +84,14 @@ fun FunctionalWaveform(
     }
 }
 
-/**
- * Recording status, manual-save button, and buffer-length segmented selector.
- */
+@Preview(showBackground = true, backgroundColor = 0xFF14122B)
 @Composable
-fun RecordingControls(
-    state: KnockRecordingUiState,
-    onManualSave: () -> Unit,
-    onDurationChange: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = stringResource(
-                R.string.recording_buffer_status,
-                formatBufferTime(state.bufferedSeconds),
-                formatBufferTime(state.maxBufferSeconds),
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = AccentGold,
-        )
-
-        FunctionalWaveform(
-            isRecording = state.isRecording,
-            level = state.level,
-            bands = state.bands,
-        )
-
-        Text(
-            text = stringResource(R.string.buffer_window_selector_title),
-            style = MaterialTheme.typography.labelMedium,
-            color = AccentGold,
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
-        ) {
-            val minutesList = listOf(1, 2, 3, 4, 5)
-            val selectedMinutes = (state.maxBufferSeconds / 60).coerceIn(1, 5)
-
-            minutesList.forEach { mins ->
-                val isSelected = mins == selectedMinutes
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onDurationChange(mins * 60) },
-                    label = { Text("${mins}m") },
-                    modifier = Modifier.weight(1f),
-                    colors = FilterChipDefaults.filterChipColors(
-                        containerColor = ObsidianMidnight,
-                        labelColor = ParchmentCream,
-                        selectedContainerColor = AccentGold,
-                        selectedLabelColor = TextInk,
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        borderColor = AccentGold,
-                        selectedBorderColor = AntiqueBrass,
-                        enabled = true,
-                        selected = isSelected,
-                    ),
-                )
-            }
-        }
-
-        Button(
-            onClick = onManualSave,
-            enabled = state.isRecording && !state.isSavingSnapshot,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AntiqueBrass,
-                contentColor = TextInk,
-            ),
-        ) {
-            Text(if (state.isSavingSnapshot) "Saving..." else stringResource(R.string.save_snapshot))
-        }
-
-        when (state.lastSaveSuccess) {
-            true -> Text("Saved successfully", style = MaterialTheme.typography.bodySmall, color = WaveformTeal)
-            false -> Text("Not enough audio buffered yet", style = MaterialTheme.typography.bodySmall, color = WaveformPink)
-            null -> Unit
-        }
-    }
-}
-
-private fun formatBufferTime(seconds: Int): String {
-    val m = seconds / 60
-    val s = seconds % 60
-    return if (m > 0) String.format(java.util.Locale.US, "%d:%02d", m, s) else "${s}s"
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun RecordingControlsRecordingPreview() {
+private fun FunctionalWaveformPreview() {
     KnockledgeTheme {
-        RecordingControls(
-            KnockRecordingUiState(
-                isRecording = true,
-                bufferedSeconds = 95,
-                maxBufferSeconds = 300,
-                isGestureActive = true,
-                level = 0.65f,
-                bands = List(14) { 0.9f - it * 0.06f },
-            ),
-            onManualSave = {},
-            onDurationChange = {},
+        FunctionalWaveform(
+            isRecording = true,
+            level = 0.65f,
+            bands = List(14) { 0.9f - it * 0.06f },
         )
     }
 }

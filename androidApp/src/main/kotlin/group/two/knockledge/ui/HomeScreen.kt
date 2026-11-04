@@ -126,7 +126,6 @@ import group.two.knockledge.ui.notes.NoteListViewModel
 import group.two.knockledge.ui.playback.AudioPlaybackScreen
 import group.two.knockledge.ui.playback.AudioPlaybackViewModel
 import group.two.knockledge.pipeline.NoteProcessingUiState
-import group.two.knockledge.ui.processing.NoteProcessingControls
 import group.two.knockledge.ui.processing.NoteProcessingViewModel
 import group.two.knockledge.ui.settings.ModelManagementViewModel
 import group.two.knockledge.ui.settings.SettingsScreen
