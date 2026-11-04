@@ -15,4 +15,8 @@
     <dimen name="notification_row_spacing">8dp</dimen>
     <dimen name="notification_row_spacing_large">12dp</dimen>
     <dimen name="notification_padding_vertical">8dp</dimen>
+    <!-- Launch splash overlay -->
+    <dimen name="splash_mark_size">96dp</dimen>
+    <dimen name="splash_ring_max_size">320dp</dimen>
+    <dimen name="splash_ring_stroke">2dp</dimen>
 </resources>

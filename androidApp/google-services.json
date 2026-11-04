@@ -12,7 +12,20 @@
           "package_name": "group.two.knockledge"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "938598507214-cgo33kt7uref6bd6lfjdc9su88ckgjin.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "group.two.knockledge",
+            "certificate_hash": "2a50ff655040bbcda01b1183109e38498ab4c685"
+          }
+        },
+        {
+          "client_id": "938598507214-cu4mef4pb02nr14p56iihuaki027rl34.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB9tp7UMpuYIGtKHmvIlEbjC5GICkjsYto"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "938598507214-cu4mef4pb02nr14p56iihuaki027rl34.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

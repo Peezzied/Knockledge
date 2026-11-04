@@ -21,6 +21,7 @@
     <!-- allowBackup=false: notes sync only through the app's own Firebase sync, not OS cloud backup. -->
     <application
         android:name=".KnockledgeApplication"
+        android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -31,6 +32,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:theme="@style/Theme.Knockledge.Starting"
             android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
