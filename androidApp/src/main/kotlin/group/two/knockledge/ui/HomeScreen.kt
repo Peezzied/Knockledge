@@ -62,6 +62,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,8 +74,10 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
@@ -81,6 +86,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -89,6 +95,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -104,7 +112,9 @@ import group.two.knockledge.audio.AudioPlaybackState
 import group.two.knockledge.core.audioBufferDir
 import group.two.knockledge.core.directorySizeBytes
 import group.two.knockledge.data.local.AudioFileStorage
+import group.two.knockledge.data.model.AudioMetadata
 import group.two.knockledge.data.model.Note
+import group.two.knockledge.data.model.TriggerType
 import group.two.knockledge.data.model.SyncStatus
 import group.two.knockledge.data.remote.GoogleIdTokenClient
 import group.two.knockledge.di.KnockledgeComponent
@@ -1124,6 +1134,9 @@ fun HomeScreen(
     onRefreshSync: () -> Unit = {},
     onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
     onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
+    onTourTargetReport: (AppTourStep, Rect) -> Unit = { _, _ -> },
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    pinRecordingsListToTop: Boolean = false,
 ) {
     val lazyListState = rememberLazyListState()
     val density = LocalDensity.current
@@ -1151,8 +1164,26 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(pinRecordingsListToTop) {
+        if (pinRecordingsListToTop) {
+            lazyListState.scrollToItem(0)
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    actionColor = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp)),
+                )
+            }
+        },
         topBar = {
             val progress = FastOutSlowInEasing.transform(collapseProgress)
             val topBarHeight = (96f - 40f * progress).dp
@@ -1189,7 +1220,11 @@ fun HomeScreen(
                         }
                         IconButton(
                             onClick = onNavigateToSettings,
-                            modifier = Modifier.size(44.dp),
+                            modifier = Modifier
+                                .size(44.dp)
+                                .onGloballyPositioned {
+                                    onTourTargetReport(AppTourStep.SETTINGS_GEAR, it.boundsInRoot())
+                                },
                         ) {
                             SettingsGearIcon(
                                 tint = MaterialTheme.colorScheme.onSurface,
@@ -1225,6 +1260,9 @@ fun HomeScreen(
             RecordFloatingActionButton(
                 onClick = onManualSave,
                 isRecording = isRecording,
+                modifier = Modifier.onGloballyPositioned {
+                    onTourTargetReport(AppTourStep.RECORD_BUTTON, it.boundsInRoot())
+                },
             )
         },
     ) { innerPadding ->
@@ -1241,7 +1279,12 @@ fun HomeScreen(
             lazyListState = lazyListState,
             onTogglePlayNote = onTogglePlayNote,
             onSeekToPosition = onSeekToPosition,
-            modifier = Modifier.padding(innerPadding),
+            onTourTargetReport = onTourTargetReport,
+            modifier = Modifier
+                .padding(innerPadding)
+                .onGloballyPositioned {
+                    onTourTargetReport(AppTourStep.RECORDINGS_LIST, it.boundsInRoot())
+                },
         )
     }
 }
@@ -1264,6 +1307,7 @@ fun HomeRecordingsContent(
     lazyListState: LazyListState = rememberLazyListState(),
     onTogglePlayNote: (Note) -> Unit = { _ -> onTogglePlayPause() },
     onSeekToPosition: (Note, Long) -> Unit = { _, _ -> },
+    onTourTargetReport: (AppTourStep, Rect) -> Unit = { _, _ -> },
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -1392,6 +1436,13 @@ fun HomeRecordingsContent(
                         onSeekToPosition = { posMs ->
                             onSeekToPosition(note, posMs)
                         },
+                        modifier = if (note.id == TOUR_SAMPLE_NOTE_ID) {
+                            Modifier.onGloballyPositioned {
+                                onTourTargetReport(AppTourStep.RECORDINGS_LIST, it.boundsInRoot())
+                            }
+                        } else {
+                            Modifier
+                        },
                     )
                 }
             }
@@ -1497,6 +1548,46 @@ fun LiveTestAppShell(
 
         val navController = rememberNavController()
 
+        var savedTourActive by rememberSaveable { mutableStateOf(false) }
+        var savedTourStep by rememberSaveable { mutableIntStateOf(0) }
+        val tourTargets = remember { AppTourTargets() }
+        val appTour = remember(appSettings, activeUserId) {
+            AppTourStateMachine(appSettings, activeUserId).also { machine ->
+                if (savedTourActive) machine.start(savedTourStep)
+            }
+        }
+        val tourState by appTour.state.collectAsState()
+        val homeSnackbarHostState = remember { SnackbarHostState() }
+        val tourSampleNote = remember(context, activeUserId) {
+            Note(
+                id = TOUR_SAMPLE_NOTE_ID,
+                userId = activeUserId,
+                title = context.getString(R.string.tour_sample_note_title),
+                createdAtEpochMs = System.currentTimeMillis(),
+                updatedAtEpochMs = System.currentTimeMillis(),
+                audio = AudioMetadata(
+                    localPath = "",
+                    durationMs = 45_000L,
+                    sampleRate = 16_000,
+                    triggerType = TriggerType.MANUAL,
+                ),
+            )
+        }
+        val displayNotes = if (tourState.active && tourState.step == AppTourStep.RECORDINGS_LIST) {
+            listOf(tourSampleNote) + notes.filter { it.id != TOUR_SAMPLE_NOTE_ID }
+        } else {
+            notes
+        }
+        LaunchedEffect(tourState) {
+            savedTourActive = tourState.active
+            savedTourStep = tourState.stepIndex
+            if (!tourState.active && tourState.completedByDone) {
+                navController.popBackStack("home", inclusive = false)
+                homeSnackbarHostState.showSnackbar(context.getString(R.string.tour_done_snackbar))
+            }
+        }
+        LaunchedEffect(appTour) { appTour.maybeStart() }
+
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -1539,18 +1630,20 @@ fun LiveTestAppShell(
                     },
                 ) {
                     HomeScreen(
-                        notes = notes,
+                        notes = displayNotes,
                         selectedNote = selectedNote,
                         playbackState = playbackState,
                         processingUiState = processingUiState,
                         isSyncing = isSyncing,
                         onRefreshSync = noteListViewModel::syncPending,
                         onSelectNote = { note ->
+                            if (note.id == TOUR_SAMPLE_NOTE_ID) return@HomeScreen
                             selectedNoteId = note.id
                             playbackViewModel.loadNote(note)
                             navController.navigate("playback/${note.id}")
                         },
                         onTogglePlayNote = { note ->
+                            if (note.id == TOUR_SAMPLE_NOTE_ID) return@HomeScreen
                             if (selectedNoteId != note.id) {
                                 selectedNoteId = note.id
                                 playbackViewModel.loadNote(note)
@@ -1559,6 +1652,7 @@ fun LiveTestAppShell(
                             }
                         },
                         onSeekToPosition = { note, posMs ->
+                            if (note.id == TOUR_SAMPLE_NOTE_ID) return@HomeScreen
                             if (selectedNoteId != note.id) {
                                 selectedNoteId = note.id
                                 playbackViewModel.loadNote(note)
@@ -1575,6 +1669,9 @@ fun LiveTestAppShell(
                             navController.navigate("settings")
                         },
                         isRecording = recordingUiState.isRecording,
+                        onTourTargetReport = tourTargets::report,
+                        snackbarHostState = homeSnackbarHostState,
+                        pinRecordingsListToTop = tourState.active && tourState.step == AppTourStep.RECORDINGS_LIST,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -1758,6 +1855,13 @@ fun LiveTestAppShell(
                             storageConsumptionMb = storageConsumptionMb,
                             isSessionRunning = recordingUiState.isRecording,
                             onPurgeSession = { recordingViewModel.stopSession() },
+                            onBufferSliderPositioned = { rect ->
+                                tourTargets.report(AppTourStep.BUFFER_SLIDER, rect)
+                            },
+                            onReplayTour = {
+                                appTour.start()
+                                navController.popBackStack("home", inclusive = false)
+                            },
                         )
                     }
                 }
@@ -1816,6 +1920,30 @@ fun LiveTestAppShell(
                         }
                     }
                 }
+            }
+
+            if (tourState.active) {
+                AppTourOverlay(
+                    state = tourState,
+                    targets = tourTargets,
+                    onNext = {
+                        if (tourState.step == AppTourStep.SETTINGS_GEAR) {
+                            navController.navigate("settings")
+                        }
+                        appTour.next()
+                    },
+                    onBack = {
+                        if (tourState.step == AppTourStep.BUFFER_SLIDER) {
+                            navController.popBackStack()
+                        }
+                        appTour.back()
+                    },
+                    onSkip = {
+                        appTour.skip()
+                        navController.popBackStack("home", inclusive = false)
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
     }

@@ -232,4 +232,25 @@
     <string name="engine_error_unsupported_device">Offline AI not supported on this device.</string>
     <string name="engine_error_out_of_memory">Not enough memory for the offline model. Try a lighter model in Settings.</string>
     <string name="engine_nothing_heard">Nothing was heard in that clip.</string>
+
+    <!-- First sign-in app tour -->
+    <string name="tour_step_counter">%1$d/%2$d</string>
+    <string name="tour_step_record_title">SAVE A MOMENT</string>
+    <string name="tour_step_record_body">Tap to save the last moments. Or knock twice on your phone.</string>
+    <string name="tour_step_list_title">YOUR RECORDINGS</string>
+    <string name="tour_step_list_body">Saved audio appears here. Tap one to play it.</string>
+    <string name="tour_step_settings_title">SETTINGS</string>
+    <string name="tour_step_settings_body">Tune the buffer, knock sensitivity, and AI processing here.</string>
+    <string name="tour_step_buffer_title">BUFFER LENGTH</string>
+    <string name="tour_step_buffer_body">Choose how far back we keep audio, up to 5 minutes.</string>
+    <string name="tour_next">Next</string>
+    <string name="tour_done">Done</string>
+    <string name="tour_skip">Skip</string>
+    <string name="tour_skip_confirm_title">Skip the tour?</string>
+    <string name="tour_skip_confirm_body">You can replay it any time from Settings.</string>
+    <string name="tour_skip_confirm_yes">Skip tour</string>
+    <string name="tour_sample_note_title">Sample: Lecture highlight</string>
+    <string name="tour_done_snackbar">You\'re all set. Knock twice or tap the center button to save your first moment.</string>
+    <string name="settings_tour_header">APP TOUR</string>
+    <string name="settings_replay_tour">Replay tour</string>
 </resources>

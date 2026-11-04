@@ -65,9 +65,12 @@ import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import android.app.Application
 import androidx.compose.ui.graphics.Color
@@ -167,6 +170,8 @@ private const val STORAGE_BAR_MIN_FILL = 0.1f
  * @param onSignOut Callback when user initiates sign-out.
  * @param onNavigateToHome Callback for back navigation, if applicable.
  * @param storageConsumptionMb Cached audio storage consumption in MB.
+ * @param onBufferSliderPositioned Callback reporting the buffer slider bounds for the app tour.
+ * @param onReplayTour Callback when the user replays the first-sign-in app tour.
  * @param modifier Modifier for root container layout.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -198,6 +203,8 @@ fun SettingsScreen(
     storageConsumptionMb: Float = 0f,
     isSessionRunning: Boolean = false,
     onPurgeSession: () -> Unit = {},
+    onBufferSliderPositioned: (Rect) -> Unit = {},
+    onReplayTour: () -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -355,6 +362,9 @@ fun SettingsScreen(
                     BufferDurationCard(
                         bufferDurationSeconds = settingsUiState.bufferDurationSeconds,
                         onBufferDurationChanged = onBufferDurationChanged,
+                        sliderModifier = Modifier.onGloballyPositioned {
+                            onBufferSliderPositioned(it.boundsInRoot())
+                        },
                     )
 
                     // 2b. Audio Card (minimum save duration + input source)
@@ -415,6 +425,9 @@ fun SettingsScreen(
                             }
                         },
                     )
+
+                    // 8. App Tour Card
+                    AppTourCard(onReplayTour = onReplayTour)
                 }
             }
         }
@@ -428,6 +441,7 @@ fun SettingsScreen(
 private fun BufferDurationCard(
     bufferDurationSeconds: Int,
     onBufferDurationChanged: (Int) -> Unit,
+    sliderModifier: Modifier = Modifier,
 ) {
     SettingsCardContainer {
         Text(
@@ -475,6 +489,7 @@ private fun BufferDurationCard(
         }
 
         Slider(
+            modifier = sliderModifier,
             value = bufferDurationSeconds.toFloat(),
             onValueChange = { onBufferDurationChanged(it.toInt()) },
             valueRange = RewindPolicy.MIN_WINDOW_SECONDS.toFloat()..RewindPolicy.MAX_WINDOW_SECONDS.toFloat(),
@@ -485,6 +500,37 @@ private fun BufferDurationCard(
                 inactiveTrackColor = BurnishedBronze,
             ),
         )
+    }
+}
+
+/**
+ * Card with a row that replays the first-sign-in app tour from step one on Home.
+ */
+@Composable
+private fun AppTourCard(
+    onReplayTour: () -> Unit,
+) {
+    SettingsCardContainer {
+        Text(
+            text = stringResource(R.string.settings_tour_header),
+            style = MaterialTheme.typography.labelMedium,
+            color = AccentGold,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .clickable(onClick = onReplayTour),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.settings_replay_tour),
+                style = MaterialTheme.typography.labelLarge,
+                color = ParchmentCream,
+            )
+            CanvasChevronRightIcon(tint = MutedSand)
+        }
     }
 }
 

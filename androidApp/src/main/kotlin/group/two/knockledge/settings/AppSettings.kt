@@ -182,6 +182,15 @@ class AppSettings(
         _autoAiProcessingEnabled.value = enabled
     }
 
+    /** Returns whether [userId] already completed or skipped the first-sign-in tour. */
+    fun isTourSeen(userId: String): Boolean =
+        store.getString("$KEY_TOUR_SEEN$userId")?.toBooleanStrictOrNull() ?: false
+
+    /** Persists the tour seen flag for [userId]. */
+    fun setTourSeen(userId: String, seen: Boolean) {
+        store.putString("$KEY_TOUR_SEEN$userId", seen.toString())
+    }
+
     /** Stores [enabled] and publishes it to [remoteSyncEnabled]. */
     fun setRemoteSyncEnabled(enabled: Boolean) {
         store.putString(KEY_REMOTE_SYNC, enabled.toString())
@@ -215,6 +224,7 @@ class AppSettings(
         private const val KEY_COMPREHENSION_MODE = "comprehension_mode"
         private const val KEY_AUTO_AI_PROCESSING = "auto_ai_processing_enabled"
         private const val KEY_REMOTE_SYNC = "remote_sync_enabled"
+        private const val KEY_TOUR_SEEN = "app_tour_seen_"
     }
 }
 
