@@ -26,7 +26,6 @@ import group.two.knockledge.ai.OnDeviceSummarizer
 import group.two.knockledge.ai.OnDeviceTranscriber
 import group.two.knockledge.ai.PrefsStore
 import group.two.knockledge.ai.SpeechEngine
-import group.two.knockledge.ai.SystemModelEngine
 import group.two.knockledge.ai.TextEngine
 import group.two.knockledge.ai.WhisperTranscriberAdapter
 import group.two.knockledge.ai.inferenceThreads
@@ -39,8 +38,6 @@ import group.two.knockledge.audio.SessionHooks
 import group.two.knockledge.core.LocalAudioRingBuffer
 import group.two.knockledge.data.AuthRepository
 import group.two.knockledge.data.NoteRepository
-import group.two.knockledge.data.RecentsRepository
-import group.two.knockledge.data.StoredRecentsRepository
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.data.repository.SnapshotNoteSink
 import group.two.knockledge.models.ModelCatalog
@@ -184,11 +181,6 @@ object KnockledgeModule {
     @Singleton
     fun promptProvider(app: Application): PromptProvider = ResourcePromptProvider(app)
 
-    /** Null on Android: only iOS 26 ships a built-in model. */
-    @Provides
-    @Nullable
-    fun systemModel(): SystemModelEngine? = null
-
     /** Whisper transcription, run with the language chosen in settings. */
     @Provides
     @Singleton
@@ -226,7 +218,6 @@ object KnockledgeModule {
         engine: TextEngine,
         files: ModelFiles,
         @Named("inferenceThreads") threads: Int,
-        system: SystemModelEngine?,
         settings: AppSettings,
         app: Application,
         promptProvider: PromptProvider,
@@ -238,7 +229,6 @@ object KnockledgeModule {
                 engine = engine,
                 files = files,
                 threads = threads,
-                system = system,
                 selected = { settings.summaryModel.value },
                 outputLanguage = { settings.summaryLanguage.value },
                 promptProvider = promptProvider,
@@ -261,10 +251,6 @@ object KnockledgeModule {
             })
         )
 
-    /** Rewind history, kept in key-value storage across restarts. */
-    @Provides
-    @Singleton
-    fun recents(store: KeyValueStore): RecentsRepository = StoredRecentsRepository(store)
 
     /** Microphone input. */
     @Provides
@@ -333,7 +319,6 @@ object KnockledgeModule {
         knock: KnockGestureDetector,
         hooks: SessionHooks,
         pipeline: RewindPipeline,
-        recents: RecentsRepository,
         sink: NoteSink,
         settings: AppSettings,
         notifier: group.two.knockledge.notification.AiNotificationNotifier,
@@ -343,7 +328,6 @@ object KnockledgeModule {
             knockDetector = knock,
             hooks = hooks,
             pipeline = pipeline,
-            recents = recents,
             noteSink = sink,
             minAudioSaveSeconds = settings.minAudioSaveSeconds,
             autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
@@ -356,20 +340,18 @@ object KnockledgeModule {
     fun aiControls(
         settings: AppSettings,
         store: ModelStore,
-        system: SystemModelEngine?,
         @Named("totalRamBytes") totalRamBytes: Long,
         device: AndroidDeviceAudioSource?,
-    ): AiControls = AiControls(settings, store, system, totalRamBytes, supportsDeviceAudio = device != null)
+    ): AiControls = AiControls(settings, store, totalRamBytes, supportsDeviceAudio = device != null)
 
     /** Everything the UI needs, in one object. */
     @Provides
     @Singleton
     fun graph(
         controller: KnockledgeController,
-        recents: RecentsRepository,
         models: ModelProvider,
         ai: AiControls,
-    ): KnockledgeGraph = KnockledgeGraph(controller, recents, models, ai)
+    ): KnockledgeGraph = KnockledgeGraph(controller, models, ai)
 }
 
 /** Keeps the mic alive in the background and puts Knockledge on the lock screen. */

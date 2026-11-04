@@ -5,7 +5,7 @@ import group.two.knockledge.core.RewindPolicy.MIN_WINDOW_SECONDS
 
 
 /**
- * Product rules from docs/SPEC.md, in one place.
+ * Product rules for audio buffering and rewind behavior.
  */
 object RewindPolicy {
     /** 16 kHz mono PCM16 is what on-device speech models (Whisper class) expect. */

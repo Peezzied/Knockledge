@@ -27,7 +27,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Rewinds whose audio holds under 1.0s of speech must skip AI and persistence. */
-class RewinderEmptyAudioTest {
+class KnockledgeEmptyAudioTest {
 
     private val tempFiles = mutableListOf<File>()
 

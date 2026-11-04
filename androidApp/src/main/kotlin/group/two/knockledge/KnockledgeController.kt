@@ -5,7 +5,6 @@ import group.two.knockledge.audio.RingAudioCapturer
 import group.two.knockledge.audio.SessionHooks
 import group.two.knockledge.core.FileLocalAudioRingBuffer
 import group.two.knockledge.core.RewindPolicy
-import group.two.knockledge.data.RecentsRepository
 import group.two.knockledge.data.TriggerType
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.notification.AiNotificationNotifier
@@ -95,7 +94,6 @@ class KnockledgeController(
     private val knockDetector: KnockGestureDetector,
     private val hooks: SessionHooks,
     private val pipeline: RewindPipeline,
-    private val recents: RecentsRepository,
     private val noteSink: NoteSink? = null,
     private val minAudioSaveSeconds: StateFlow<Int> = MutableStateFlow(RewindPolicy.MIN_REWIND_SECONDS),
     private val autoAiProcessingEnabled: StateFlow<Boolean> = MutableStateFlow(true),
@@ -114,10 +112,15 @@ class KnockledgeController(
     private val coordinatorError = MutableStateFlow<String?>(null)
     private val isGestureListening = MutableStateFlow(false)
 
-    private val _created = MutableSharedFlow<Long>(extraBufferCapacity = 4)
 
-    /** Emits the id of each new Recent, so the UI can open it. */
-    val createdRecents: SharedFlow<Long> = _created.asSharedFlow()
+    private val _gestureCaptures = MutableSharedFlow<Unit>()
+
+    /**
+     * Emits once for each knock-gesture capture that actually saves, so the capture
+     * button can replay its suction animation. Events drop when nobody is collecting
+     * or the collector is busy, so they never replay stale on screen entry.
+     */
+    val gestureCaptures: SharedFlow<Unit> = _gestureCaptures.asSharedFlow()
 
     /** Current session state, observed by the UI and the foreground service. */
     val state: StateFlow<KnockledgeState> = combine(
@@ -186,6 +189,7 @@ class KnockledgeController(
     fun rewind(trigger: TriggerType = TriggerType.GESTURE) {
         if (!state.value.canRewind) return
         pendingRewinds.update { it + 1 }
+        if (trigger == TriggerType.GESTURE) _gestureCaptures.tryEmit(Unit)
         scope.launch {
             var wav: File? = null
             var endedAt = 0L
@@ -211,8 +215,6 @@ class KnockledgeController(
                     when (result) {
                         is PipelineResult.InsufficientSpeech -> reportError(result.message)
                         is PipelineResult.Success -> {
-                            val recent = recents.add(result.summary, endedAt - durationMillis, endedAt)
-                            _created.tryEmit(recent.id)
                             runCatching {
                                 noteSink?.record(
                                     wav, endedAt - durationMillis, endedAt, trigger,
@@ -250,10 +252,6 @@ class KnockledgeController(
         }
     }
 
-    /** Deletes the Recent with [id]. */
-    fun delete(id: Long) {
-        scope.launch { recents.delete(id) }
-    }
 
     /** Publishes [message] as the current error, shown until [clearError]. */
     fun reportError(message: String) {

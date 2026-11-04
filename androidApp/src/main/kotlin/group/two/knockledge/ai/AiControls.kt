@@ -12,7 +12,6 @@ import group.two.knockledge.settings.AppSettings
 class AiControls(
     val settings: AppSettings,
     private val models: ModelStore,
-    private val system: SystemModelEngine?,
     private val totalRamBytes: Long,
     /** False where the platform cannot capture its own playback. */
     val supportsDeviceAudio: Boolean = false,

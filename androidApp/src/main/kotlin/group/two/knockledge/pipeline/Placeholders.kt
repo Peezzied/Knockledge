@@ -3,8 +3,7 @@ package group.two.knockledge.pipeline
 import group.two.knockledge.core.formatDuration
 
 /**
- * Stand-ins until the on-device models are wired in (see docs/ARCHITECTURE.md).
- * They let the full flow run end to end on both platforms today.
+ * Stand-ins until on-device models are wired in.
  */
 class PlaceholderTranscriber : Transcriber {
     /** Returns an empty transcript; stand-in until a real engine is connected. */

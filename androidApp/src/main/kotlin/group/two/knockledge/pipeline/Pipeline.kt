@@ -157,9 +157,6 @@ object SummarizerPrompt : PromptProvider {
         else -> "Write in the language the speakers mostly used: English, Filipino or Taglish."
     }
 
-    /** Apple's on-device model has a 4096 token window for input and output together. */
-    const val APPLE_MAX_TRANSCRIPT_CHARS: Int = 5_000
-
     /** User prompt carrying the clipped transcript and the language instruction. */
     fun user(
         request: SummaryRequest,

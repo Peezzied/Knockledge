@@ -5,7 +5,6 @@ import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.NoopSessionHooks
 import group.two.knockledge.audio.RingAudioCapturer
 import group.two.knockledge.core.LocalAudioRingBuffer
-import group.two.knockledge.data.InMemoryRecentsRepository
 import group.two.knockledge.data.TriggerType
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.pipeline.DefaultAudioPreprocessor
@@ -95,7 +94,6 @@ class OriginalAudioPreservationTest {
             knockDetector = detector,
             hooks = NoopSessionHooks,
             pipeline = RewindPipeline(PlaceholderTranscriber(), PlaceholderSummarizer(), DefaultAudioPreprocessor()),
-            recents = InMemoryRecentsRepository(),
             noteSink = sink,
             minAudioSaveSeconds = MutableStateFlow(2),
         )

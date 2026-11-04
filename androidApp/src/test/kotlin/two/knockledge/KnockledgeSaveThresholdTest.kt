@@ -21,7 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-class RewinderSaveThresholdTest {
+class KnockledgeSaveThresholdTest {
     private class DummyBuffer(var currentMillis: Long = 0L) : LocalAudioRingBuffer {
         override fun write(chunk: ShortArray, length: Int) {}
         override fun setWindowSeconds(seconds: Int) {}

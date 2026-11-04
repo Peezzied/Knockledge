@@ -83,7 +83,7 @@ object ModelCatalog {
     fun summarizerFor(totalRamBytes: Long): ModelFile =
         if (totalRamBytes >= 3_400_000_000L) qwen2b else qwen08b
 
-    /** Looks up a downloadable Qwen model by [ModelFile.id]; null for unknown ids and for Apple's model. */
+    /** Looks up a downloadable Qwen model by [ModelFile.id]; null for unknown ids. */
     fun qwenById(id: String): ModelFile? = qwenModels.firstOrNull { it.id == id }
 
     /** Looks up a Whisper model by [ModelFile.id]; unknown ids fall back to the default [whisper]. */
@@ -92,7 +92,6 @@ object ModelCatalog {
 
 /** Ids for the summary model setting. Qwen ids match [ModelFile.id]. */
 object SummaryModelIds {
-    const val APPLE = "apple"
     const val QWEN_2B = "qwen2b"
     const val QWEN_08B = "qwen08b"
 }

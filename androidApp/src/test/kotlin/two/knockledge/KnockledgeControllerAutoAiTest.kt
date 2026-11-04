@@ -4,7 +4,6 @@ import group.two.knockledge.audio.InputStatus
 import group.two.knockledge.audio.RingAudioCapturer
 import group.two.knockledge.audio.SessionHooks
 import group.two.knockledge.core.FileLocalAudioRingBuffer
-import group.two.knockledge.data.InMemoryRecentsRepository
 import group.two.knockledge.data.TriggerType
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.pipeline.DefaultAudioPreprocessor
@@ -103,7 +102,6 @@ class KnockledgeControllerAutoAiTest {
                 summarizer = PlaceholderSummarizer(),
                 preprocessor = DefaultAudioPreprocessor(),
             ),
-            recents = InMemoryRecentsRepository(),
             noteSink = sink,
             autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
         )
@@ -136,7 +134,6 @@ class KnockledgeControllerAutoAiTest {
                 summarizer = PlaceholderSummarizer(),
                 preprocessor = DefaultAudioPreprocessor(),
             ),
-            recents = InMemoryRecentsRepository(),
             noteSink = sink,
             autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
         )
@@ -169,7 +166,6 @@ class KnockledgeControllerAutoAiTest {
                 summarizer = PlaceholderSummarizer(),
                 preprocessor = DefaultAudioPreprocessor(),
             ),
-            recents = InMemoryRecentsRepository(),
             noteSink = sink,
             autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
         )
@@ -203,7 +199,6 @@ class KnockledgeControllerAutoAiTest {
                 summarizer = PlaceholderSummarizer(),
                 preprocessor = DefaultAudioPreprocessor(),
             ),
-            recents = InMemoryRecentsRepository(),
             noteSink = sink,
             autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
         )
@@ -245,7 +240,6 @@ class KnockledgeControllerAutoAiTest {
                 summarizer = PlaceholderSummarizer(),
                 preprocessor = DefaultAudioPreprocessor(),
             ),
-            recents = InMemoryRecentsRepository(),
             noteSink = RecordingNoteSink(),
             autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
             notifier = testNotifier,

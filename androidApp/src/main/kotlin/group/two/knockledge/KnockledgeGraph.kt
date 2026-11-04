@@ -4,8 +4,6 @@ import group.two.knockledge.ai.AiControls
 import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.SessionHooks
 import group.two.knockledge.core.LocalAudioRingBuffer
-import group.two.knockledge.data.InMemoryRecentsRepository
-import group.two.knockledge.data.RecentsRepository
 import group.two.knockledge.models.ModelProvider
 import group.two.knockledge.pipeline.AudioPreprocessor
 import group.two.knockledge.pipeline.PlaceholderSummarizer
@@ -23,7 +21,6 @@ import group.two.knockledge.sensor.KnockGestureDetector
  */
 class KnockledgeGraph(
     val controller: KnockledgeController,
-    val recents: RecentsRepository,
     /** On-device AI model store; null where the platform has none yet. */
     val models: ModelProvider?,
     /** Settings and model picker; null in previews. */
@@ -35,7 +32,6 @@ class KnockledgeGraph(
         transcriber: Transcriber = PlaceholderTranscriber(),
         preprocessor: AudioPreprocessor = SileroAudioPreprocessor(),
         summarizer: Summarizer = PlaceholderSummarizer(),
-        recents: RecentsRepository = InMemoryRecentsRepository(),
         buffer: LocalAudioRingBuffer,
         knockDetector: KnockGestureDetector = object : KnockGestureDetector {
             override fun startListening(onKnockDetected: () -> Unit) = Unit
@@ -51,9 +47,7 @@ class KnockledgeGraph(
             knockDetector = knockDetector,
             hooks = hooks,
             pipeline = RewindPipeline(transcriber, summarizer, preprocessor),
-            recents = recents,
         ),
-        recents = recents,
         models = null,
         ai = null,
     )

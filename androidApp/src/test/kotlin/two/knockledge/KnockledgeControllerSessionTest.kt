@@ -5,7 +5,6 @@ import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.NoopSessionHooks
 import group.two.knockledge.audio.RingAudioCapturer
 import group.two.knockledge.core.LocalAudioRingBuffer
-import group.two.knockledge.data.InMemoryRecentsRepository
 import group.two.knockledge.data.TriggerType
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.pipeline.DefaultAudioPreprocessor
@@ -81,7 +80,6 @@ class KnockledgeControllerSessionTest {
             capturer = capturer,
             knockDetector = detector,
             pipeline = pipeline,
-            recents = InMemoryRecentsRepository(),
             hooks = NoopSessionHooks,
         )
 
@@ -125,7 +123,6 @@ class KnockledgeControllerSessionTest {
             capturer = capturer,
             knockDetector = detector,
             pipeline = pipeline,
-            recents = InMemoryRecentsRepository(),
             noteSink = sink,
             hooks = NoopSessionHooks,
             minAudioSaveSeconds = MutableStateFlow(2),

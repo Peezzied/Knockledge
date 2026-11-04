@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Tiny persistent key-value store. Android: SharedPreferences. iOS: NSUserDefaults. */
+/** Tiny persistent key-value store using SharedPreferences. */
 interface KeyValueStore {
     /** Returns the stored value, or null when the key is absent. */
     fun getString(key: String): String?
@@ -56,11 +56,8 @@ class AppSettings(
     defaultSummaryModel: String,
 ) {
     init {
-        // v2: Qwen became the default summary model. Earlier builds defaulted to Apple's model
-        // on iOS 26, so that saved choice is reset once; picking Apple again in Settings sticks.
         val version = store.getString(KEY_VERSION)?.toIntOrNull() ?: 1
         if (version < 2) {
-            if (store.getString(KEY_SUMMARY) == "apple") store.putString(KEY_SUMMARY, null)
             store.putString(KEY_VERSION, "2")
         }
     }
