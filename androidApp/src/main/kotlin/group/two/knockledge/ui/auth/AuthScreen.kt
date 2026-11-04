@@ -66,6 +66,7 @@ import group.two.knockledge.ui.theme.AntiqueBrass
 import group.two.knockledge.ui.theme.KnockledgeTheme
 import group.two.knockledge.ui.theme.MutedSand
 import group.two.knockledge.ui.theme.ObsidianMidnight
+import group.two.knockledge.ui.theme.speakerClothTexture
 import group.two.knockledge.ui.theme.OutlineVariant
 import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.SurfaceContainer
@@ -113,7 +114,8 @@ fun AuthScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianMidnight),
+            .background(ObsidianMidnight)
+            .speakerClothTexture(),
     ) {
         // Ambient Gold Top Glow
         Box(

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Knockledge — Acoustic Speaker Cloth Texture</title>
+<style>
+  :root {
+    --obsidian: #14122b;
+    --surface-indigo: #1e1b3a;
+    --parchment: #f2e8d0;
+    --ink: #1b1833;
+    --brass: #b8913f;
+    --muted: #b9b09a;
+  }
+  body {
+    margin: 0;
+    font-family: monospace;
+    background: #0d0e15;
+    color: var(--parchment);
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--brass);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  h1 { font-size: 18px; margin: 0; letter-spacing: 0.05em; }
+  button {
+    background: var(--brass);
+    color: var(--ink);
+    border: none;
+    padding: 8px 16px;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    padding: 24px;
+  }
+  .swatch {
+    position: relative;
+    height: 220px;
+    border: 1px solid var(--brass);
+    overflow: hidden;
+  }
+  .swatch .tex {
+    position: absolute;
+    inset: 0;
+    background-image: url("../../androidApp/src/main/res/drawable/texture_speaker_grill.png");
+    background-repeat: repeat;
+    image-rendering: pixelated;
+    pointer-events: none;
+  }
+  .swatch .label {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 11px;
+    background: rgba(0,0,0,0.6);
+    padding: 2px 6px;
+  }
+  .card {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    background: var(--parchment);
+    color: var(--ink);
+    border: 1px solid var(--brass);
+    padding: 12px;
+    font-size: 13px;
+  }
+  .card .meta { color: #6b6450; font-size: 11px; margin-top: 4px; }
+  .bay {
+    border-radius: 0 0 16px 16px;
+  }
+  /* Loupe */
+  #loupe {
+    position: fixed;
+    width: 160px;
+    height: 160px;
+    border: 2px solid var(--brass);
+    border-radius: 50%;
+    background-image: url("../../androidApp/src/main/res/drawable/texture_speaker_grill.png");
+    background-repeat: repeat;
+    image-rendering: pixelated;
+    pointer-events: none;
+    display: none;
+    z-index: 10;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  }
+  .note { padding: 0 24px 24px; color: var(--muted); font-size: 12px; }
+  .tex.off { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ACOUSTIC SPEAKER CLOTH — DESIGN SWATCH</h1>
+  <button id="toggle">TEXTURE: ON</button>
+</header>
+
+<div class="swatches">
+  <div class="swatch" style="background: var(--obsidian);">
+    <div class="tex" data-alpha="0.26" style="opacity: 0.26;"></div>
+    <div class="label">CHASSIS — ObsidianMidnight @ 26%</div>
+    <div class="card">
+      Anchor Note Card — ParchmentCream
+      <div class="meta">Engineering Standup · 2:05 · PROCESSED</div>
+    </div>
+  </div>
+
+  <div class="swatch bay" style="background: rgba(30,27,58,0.85);">
+    <div class="tex" data-alpha="0.34" style="opacity: 0.34;"></div>
+    <div class="label">SENSOR BAY — SurfaceIndigo 85% @ 34%, rounded bottom 16px</div>
+    <div class="card">
+      Recordings
+      <div class="meta">Buffer telemetry stays vector-sharp above cloth</div>
+    </div>
+  </div>
+
+  <div class="swatch" style="background: var(--parchment);">
+    <div class="label" style="color: var(--ink);">UNTEXTURED — Ink on Parchment (0% cloth)</div>
+    <div class="card">
+      Transcript text sample — contrast target ≥ 4.5:1
+      <div class="meta">Note cards, waveforms, and controls never carry texture</div>
+    </div>
+  </div>
+</div>
+
+<p class="note">Hover any textured swatch to inspect the weave under the 10× loupe. Toggle confirms instant visibility change.</p>
+
+<div id="loupe"></div>
+
+<script>
+  const loupe = document.getElementById('loupe');
+  const ZOOM = 10;
+  const SIZE = 16 * ZOOM;
+
+  document.querySelectorAll('.swatch').forEach(swatch => {
+    swatch.addEventListener('mousemove', e => {
+      const tex = swatch.querySelector('.tex');
+      if (!tex || tex.classList.contains('off')) { loupe.style.display = 'none'; return; }
+      const r = swatch.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      loupe.style.display = 'block';
+      loupe.style.left = (e.clientX + 24) + 'px';
+      loupe.style.top = (e.clientY - 80) + 'px';
+      loupe.style.backgroundSize = SIZE + 'px ' + SIZE + 'px';
+      loupe.style.backgroundPosition =
+        (-(x * ZOOM) + 80) + 'px ' + (-(y * ZOOM) + 80) + 'px';
+      loupe.style.opacity = tex.dataset.alpha;
+    });
+    swatch.addEventListener('mouseleave', () => { loupe.style.display = 'none'; });
+  });
+
+  const btn = document.getElementById('toggle');
+  let on = true;
+  btn.addEventListener('click', () => {
+    on = !on;
+    btn.textContent = 'TEXTURE: ' + (on ? 'ON' : 'OFF');
+    document.querySelectorAll('.tex').forEach(t => t.classList.toggle('off', !on));
+  });
+</script>
+</body>
+</html>

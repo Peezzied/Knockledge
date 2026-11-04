@@ -90,6 +90,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
@@ -140,7 +141,10 @@ import group.two.knockledge.ui.theme.KnockledgeTheme
 import group.two.knockledge.ui.theme.ObsidianMidnight
 import group.two.knockledge.ui.theme.OutlineVariant
 import group.two.knockledge.ui.theme.ParchmentCream
+import group.two.knockledge.ui.theme.SpeakerClothAlphaSensorBay
+import group.two.knockledge.ui.theme.SurfaceIndigo
 import group.two.knockledge.ui.theme.WaveformTeal
+import group.two.knockledge.ui.theme.speakerClothTexture
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1171,7 +1175,11 @@ fun HomeScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .background(ObsidianMidnight)
+            .speakerClothTexture(),
+        containerColor = Color.Transparent,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
@@ -1355,8 +1363,8 @@ fun HomeRecordingsContent(
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f).compositeOver(ObsidianMidnight),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f).compositeOver(ObsidianMidnight),
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent,
                     ),
@@ -1591,7 +1599,8 @@ fun LiveTestAppShell(
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(ObsidianMidnight),
+                .background(ObsidianMidnight)
+                .speakerClothTexture(),
         ) {
             NavHost(
                 navController = navController,
@@ -1958,7 +1967,8 @@ private fun HomeScreenPreview() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(ObsidianMidnight),
+                .background(ObsidianMidnight)
+                .speakerClothTexture(),
         ) {
             NavHost(
                 navController = navController,

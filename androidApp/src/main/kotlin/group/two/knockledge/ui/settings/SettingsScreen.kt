@@ -125,6 +125,7 @@ import group.two.knockledge.ui.theme.BurnishedBronze
 import group.two.knockledge.ui.theme.KnockledgeTheme
 import group.two.knockledge.ui.theme.MutedSand
 import group.two.knockledge.ui.theme.ObsidianMidnight
+import group.two.knockledge.ui.theme.speakerClothTexture
 import group.two.knockledge.ui.theme.OutlineVariant
 import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.SurfaceContainerHigh
@@ -231,7 +232,8 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .background(ObsidianMidnight),
+            .background(ObsidianMidnight)
+            .speakerClothTexture(),
     ) {
         // Ambient Glow Highlights
         Canvas(modifier = Modifier.fillMaxSize()) {

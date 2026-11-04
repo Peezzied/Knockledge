@@ -109,6 +109,7 @@ import group.two.knockledge.ui.theme.SurfaceIndigo
 import group.two.knockledge.ui.theme.TextInk
 import group.two.knockledge.ui.theme.VcrOsdMono
 import group.two.knockledge.ui.theme.WaveformTeal
+import group.two.knockledge.ui.theme.speakerClothTexture
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -232,6 +233,7 @@ fun AudioPlaybackScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .speakerClothTexture()
             .statusBarsPadding()
             .navigationBarsPadding(),
         topBar = {
@@ -245,7 +247,7 @@ fun AudioPlaybackScreen(
                 isProcessed = note.summary != null || note.transcript != null,
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
     ) { innerPadding ->
         Column(
             modifier = Modifier

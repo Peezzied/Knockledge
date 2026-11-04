@@ -80,6 +80,7 @@ import group.two.knockledge.ui.theme.ParchmentCream
 import group.two.knockledge.ui.theme.SurfaceContainerHigh
 import group.two.knockledge.ui.theme.TextInk
 import group.two.knockledge.ui.theme.WaveformTeal
+import group.two.knockledge.ui.theme.speakerClothTexture
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -237,7 +238,8 @@ fun RecordScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianMidnight),
+            .background(ObsidianMidnight)
+            .speakerClothTexture(),
     ) {
         Box(
             modifier = Modifier

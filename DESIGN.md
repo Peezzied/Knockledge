@@ -149,6 +149,7 @@ The color system maps the Obsidian & Brass aesthetic into official Material 3 `C
 **The Material Semantic Rule.** All Compose UI code references `MaterialTheme.colorScheme` tokens, never raw hex values.
 **The Telemetry Rarity Rule.** Electric teal and pink appear only within active audio frequency waveforms. They never decorate buttons, icons, or navigation controls.
 **The Ink on Parchment Rule.** Light parchment cards (`#f2e8d0`) must always carry deep dark ink (`#1b1833`), never white or light gold text.
+**The Acoustic Cloth Rule.** The repeating speaker grill weave (`texture_speaker_grill`) renders at 26% opacity on the application background canvas and 34% opacity on the acoustic sensor bay header. It never appears on note cards, waveforms, or controls.
 
 ## Typography
 
