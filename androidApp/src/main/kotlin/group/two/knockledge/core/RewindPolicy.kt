@@ -1,9 +1,5 @@
 package group.two.knockledge.core
 
-import group.two.knockledge.core.RewindPolicy.MAX_WINDOW_SECONDS
-import group.two.knockledge.core.RewindPolicy.MIN_WINDOW_SECONDS
-
-
 /**
  * Product rules for audio buffering and rewind behavior.
  */

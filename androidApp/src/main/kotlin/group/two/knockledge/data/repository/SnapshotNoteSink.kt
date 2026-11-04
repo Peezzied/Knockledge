@@ -13,7 +13,6 @@ import group.two.knockledge.pipeline.Summary
 import group.two.knockledge.pipeline.TranscriptResult
 import java.io.File
 import group.two.knockledge.data.model.TranscriptionEngineType as ModelEngineType
-import group.two.knockledge.data.model.TriggerType as ModelTriggerType
 import group.two.knockledge.pipeline.TranscriptionEngineType as PipelineEngineType
 
 /** Turns one finished recording, its transcript and its summary into a stored note. */
@@ -125,7 +124,7 @@ class SnapshotNoteSink(
                 startEpochMs = startEpochMs,
                 endEpochMs = endEpochMs,
                 durationMs = endEpochMs - startEpochMs,
-                triggerType = ModelTriggerType.valueOf(trigger.name),
+                triggerType = trigger,
             ),
             user.uid,
         ).id
