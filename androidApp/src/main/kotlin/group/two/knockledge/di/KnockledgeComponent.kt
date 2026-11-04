@@ -51,6 +51,7 @@ import group.two.knockledge.pipeline.AudioPreprocessor
 import group.two.knockledge.pipeline.CompositeSummarizer
 import group.two.knockledge.pipeline.CompositeTranscriber
 import group.two.knockledge.audio.AudioPlayer
+import group.two.knockledge.pipeline.AiProcessingTracker
 import group.two.knockledge.pipeline.OnnxSileroVadDetector
 import group.two.knockledge.pipeline.PromptProvider
 import group.two.knockledge.pipeline.ResourcePromptProvider
@@ -89,6 +90,9 @@ interface KnockledgeComponent {
 
     /** Notifier for posting system notifications upon AI completion. */
     fun aiNotificationNotifier(): group.two.knockledge.notification.AiNotificationNotifier
+
+    /** Single source of truth for AI processing state shared by auto and on-demand paths. */
+    fun aiProcessingTracker(): AiProcessingTracker
 
     /** Fills the service's controller and gesture detector; call from onCreate. */
     fun inject(service: KnockledgeService)
@@ -311,6 +315,11 @@ object KnockledgeModule {
     fun aiNotificationNotifier(app: Application): group.two.knockledge.notification.AiNotificationNotifier =
         group.two.knockledge.notification.AndroidAiNotificationNotifier(app)
 
+    /** Shared AI processing state; the controller and the on-demand ViewModel both publish to it. */
+    @Provides
+    @Singleton
+    fun aiProcessingTracker(): AiProcessingTracker = AiProcessingTracker()
+
     /** The session controller coordinating audio capture, knock gestures, and rewinds. */
     @Provides
     @Singleton
@@ -322,6 +331,7 @@ object KnockledgeModule {
         sink: NoteSink,
         settings: AppSettings,
         notifier: group.two.knockledge.notification.AiNotificationNotifier,
+        aiTracker: AiProcessingTracker,
     ): KnockledgeController =
         KnockledgeController(
             capturer = capturer,
@@ -332,6 +342,7 @@ object KnockledgeModule {
             minAudioSaveSeconds = settings.minAudioSaveSeconds,
             autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
             notifier = notifier,
+            aiTracker = aiTracker,
         )
 
     /** Settings and model picker, told at creation whether this device supports playback capture. */

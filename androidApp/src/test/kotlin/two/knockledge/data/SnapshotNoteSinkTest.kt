@@ -136,8 +136,9 @@ class SnapshotNoteSinkTest {
     fun recordAudioOnlySavesAudioWithoutTranscriptOrSummary() = runBlocking {
         val notes = FakeNotes()
         val sink = SnapshotNoteSink(notes, FakeAuth(user))
-        sink.recordAudioOnly(wav(), 1_000L, 61_000L, TriggerType.GESTURE)
+        val noteId = sink.recordAudioOnly(wav(), 1_000L, 61_000L, TriggerType.GESTURE)
 
+        assertEquals("note-0", noteId)
         assertEquals(1, notes.created.size)
         assertEquals(60_000L, notes.created[0].durationMs)
         assertEquals(group.two.knockledge.data.model.TriggerType.GESTURE, notes.created[0].triggerType)
@@ -149,9 +150,32 @@ class SnapshotNoteSinkTest {
     fun recordAudioOnlyReturnsNullWhenSignedOut() = runBlocking {
         val notes = FakeNotes()
         val sink = SnapshotNoteSink(notes, FakeAuth(null))
-        sink.recordAudioOnly(wav(), 1_000L, 61_000L, TriggerType.MANUAL)
+        val noteId = sink.recordAudioOnly(wav(), 1_000L, 61_000L, TriggerType.MANUAL)
+
+        assertEquals(null, noteId)
+        assertTrue(notes.created.isEmpty())
+        assertTrue(notes.transcripts.isEmpty())
+        assertTrue(notes.summaries.isEmpty())
+    }
+
+    @Test
+    fun attachAiAttachesTranscriptAndSummaryToExistingNote() = runBlocking {
+        val notes = FakeNotes()
+        val sink = SnapshotNoteSink(notes, FakeAuth(user))
+        sink.attachAi("note-7", transcript, summary)
 
         assertTrue(notes.created.isEmpty())
+        assertEquals("note-7", notes.transcripts[0].first)
+        assertEquals("note-7", notes.summaries[0].first)
+        assertEquals("A greeting.", notes.summaries[0].second.executiveSummary)
+    }
+
+    @Test
+    fun attachAiSkipsWhenSignedOut() = runBlocking {
+        val notes = FakeNotes()
+        val sink = SnapshotNoteSink(notes, FakeAuth(null))
+        sink.attachAi("note-7", transcript, summary)
+
         assertTrue(notes.transcripts.isEmpty())
         assertTrue(notes.summaries.isEmpty())
     }

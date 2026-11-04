@@ -5,7 +5,6 @@ import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.NoopSessionHooks
 import group.two.knockledge.audio.RingAudioCapturer
 import group.two.knockledge.core.LocalAudioRingBuffer
-import group.two.knockledge.data.InMemoryRecentsRepository
 import group.two.knockledge.data.TriggerType
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.pipeline.AudioPreprocessResult
@@ -62,8 +61,9 @@ class KnockledgeEmptyAudioTest {
             startEpochMs: Long,
             endEpochMs: Long,
             trigger: TriggerType,
-        ) {
+        ): String? {
             audioOnlyCalls++
+            return null
         }
     }
 
@@ -78,9 +78,8 @@ class KnockledgeEmptyAudioTest {
     }
 
     @Test
-    fun silentRewindReportsErrorSkipsPersistenceAndDeletesWav() = runBlocking {
+    fun silentRewindReportsErrorSavesAudioOnlyAndDeletesWav() = runBlocking {
         val wav = silentWav()
-        val recents = InMemoryRecentsRepository()
         val sink = RecordingSink()
         val pipeline = RewindPipeline(
             PlaceholderTranscriber(),
@@ -92,7 +91,7 @@ class KnockledgeEmptyAudioTest {
         )
         val detector = object : KnockGestureDetector {
             override val isListening: Boolean = false
-            override fun startListening(onKnockDetected: () -> Unit) = Unit
+            override fun startListening(onKnockDetected: () -> Boolean) = Unit
             override fun stopListening() = Unit
         }
         val controller = KnockledgeController(
@@ -100,7 +99,6 @@ class KnockledgeEmptyAudioTest {
             knockDetector = detector,
             hooks = NoopSessionHooks,
             pipeline = pipeline,
-            recents = recents,
             noteSink = sink,
             minAudioSaveSeconds = kotlinx.coroutines.flow.MutableStateFlow(2),
         )
@@ -111,9 +109,8 @@ class KnockledgeEmptyAudioTest {
         withTimeout(5_000) { while (controller.state.value.pendingRewinds > 0) delay(10) }
 
         assertEquals("No speech detected in recorded audio.", controller.state.value.error)
-        assertTrue(recents.recents.value.isEmpty())
         assertEquals(0, sink.recordCalls)
-        assertEquals(0, sink.audioOnlyCalls)
+        assertEquals(1, sink.audioOnlyCalls)
         assertFalse(wav.exists())
         controller.stop()
     }

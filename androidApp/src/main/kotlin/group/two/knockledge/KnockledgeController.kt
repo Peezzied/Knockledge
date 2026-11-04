@@ -9,6 +9,9 @@ import group.two.knockledge.data.TriggerType
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.notification.AiNotificationNotifier
 import group.two.knockledge.notification.NoopAiNotificationNotifier
+import group.two.knockledge.pipeline.AiProcessingTracker
+import group.two.knockledge.pipeline.NoteAiProcessingState
+import group.two.knockledge.pipeline.NoteProcessingUiState
 import group.two.knockledge.pipeline.PipelineResult
 import group.two.knockledge.pipeline.RewindPipeline
 import group.two.knockledge.pipeline.RewindStage
@@ -99,6 +102,7 @@ class KnockledgeController(
     private val minAudioSaveSeconds: StateFlow<Int> = MutableStateFlow(RewindPolicy.MIN_REWIND_SECONDS),
     private val autoAiProcessingEnabled: StateFlow<Boolean> = MutableStateFlow(true),
     private val notifier: AiNotificationNotifier = NoopAiNotificationNotifier,
+    private val aiTracker: AiProcessingTracker = AiProcessingTracker(),
     private val nowMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -109,7 +113,6 @@ class KnockledgeController(
     /** Clips saved during the current session; resets when a new session starts. */
     val savedClipCount: StateFlow<Int> = _savedClipCount
 
-    private val stage = MutableStateFlow<RewindStage?>(null)
     private val coordinatorError = MutableStateFlow<String?>(null)
     private val isGestureListening = MutableStateFlow(false)
 
@@ -126,14 +129,25 @@ class KnockledgeController(
      */
     val gestureCaptures: SharedFlow<Unit> = _gestureCaptures.asSharedFlow()
 
+    private val _rejectedKnocks = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /**
+     * Emits once for each knock gesture rejected because the buffered audio has not
+     * reached the configured save threshold yet, so the UI can explain the no-save.
+     */
+    val rejectedKnocks: SharedFlow<Unit> = _rejectedKnocks.asSharedFlow()
+
     /** Current session state, observed by the UI and the foreground service. */
     val state: StateFlow<KnockledgeState> = combine(
         capturer.state,
         pendingRewinds,
-        stage,
+        aiTracker.state,
         coordinatorError,
         isGestureListening,
-    ) { capState, pending, currentStage, coordErr, gestureActive ->
+    ) { capState, pending, aiState, coordErr, gestureActive ->
         KnockledgeState(
             isRunning = capState.isRunning,
             isPaused = capState.isPaused,
@@ -143,7 +157,7 @@ class KnockledgeController(
             pendingRewinds = pending,
             level = capState.level,
             bands = capState.bands,
-            stage = currentStage,
+            stage = aiState.stage.takeIf { aiState.isProcessing },
             inputLabel = capState.inputLabel,
             inputDb = capState.inputDb,
             inputWarning = capState.inputWarning,
@@ -188,10 +202,17 @@ class KnockledgeController(
      * Saves the audio recorded since the previous rewind (up to the 5-minute window)
      * and summarizes it, so consecutive rewinds never overlap. Snapshots are taken
      * instantly; summaries run one at a time so only one model is ever loaded.
-     * Ignored until the configured minimum (or the whole window, if shorter) is cached.
+     * Ignored until the configured minimum (or the whole window, if shorter) is cached;
+     * a gesture knock rejected this way emits on [rejectedKnocks].
+     *
+     * @return true when the rewind was accepted, false when the buffered audio had not
+     * reached the configured minimum yet. Gesture detectors use this to gate haptic feedback.
      */
-    fun rewind(trigger: TriggerType = TriggerType.GESTURE) {
-        if (!state.value.canRewind) return
+    fun rewind(trigger: TriggerType = TriggerType.GESTURE): Boolean {
+        if (!state.value.canRewind) {
+            if (trigger == TriggerType.GESTURE) _rejectedKnocks.tryEmit(Unit)
+            return false
+        }
         pendingRewinds.update { it + 1 }
         if (trigger == TriggerType.GESTURE) _gestureCaptures.tryEmit(Unit)
         scope.launch {
@@ -205,47 +226,88 @@ class KnockledgeController(
                 endedAt = nowMillis()
                 durationMillis = pcm.size * 1000L / RewindPolicy.SAMPLE_RATE
 
+                val noteId = runCatching {
+                    noteSink?.recordAudioOnly(wav, endedAt - durationMillis, endedAt, trigger)
+                }.getOrNull()
+
                 if (!autoAiProcessingEnabled.value) {
-                    runCatching { noteSink?.recordAudioOnly(wav, endedAt - durationMillis, endedAt, trigger) }
                     return@launch
                 }
                 pipelineLock.withLock {
+                    aiTracker.set(
+                        NoteProcessingUiState(
+                            noteId = noteId,
+                            isProcessing = true,
+                            state = NoteAiProcessingState.TRANSCRIBING,
+                            stage = RewindStage.Preprocessing,
+                        )
+                    )
                     val result = pipeline.run(
                         pcm,
                         RewindPolicy.SAMPLE_RATE,
                         durationMillis,
-                        onStage = { s -> stage.value = s },
-                    )
-                    when (result) {
-                        is PipelineResult.InsufficientSpeech -> reportError(result.message)
-                        is PipelineResult.Success -> {
-                            runCatching {
-                                noteSink?.record(
-                                    wav, endedAt - durationMillis, endedAt, trigger,
-                                    result.transcript, result.summary,
+                        onStage = { s ->
+                            aiTracker.update {
+                                it.copy(
+                                    stage = s,
+                                    state = if (s == RewindStage.Summarizing) {
+                                        NoteAiProcessingState.SUMMARIZING
+                                    } else {
+                                        NoteAiProcessingState.TRANSCRIBING
+                                    },
                                 )
                             }
+                        },
+                    )
+                    when (result) {
+                        is PipelineResult.InsufficientSpeech -> {
+                            aiTracker.update {
+                                it.copy(
+                                    isProcessing = false,
+                                    state = NoteAiProcessingState.SKIPPED,
+                                    errorMessage = result.message,
+                                )
+                            }
+                            reportError(result.message)
+                        }
+                        is PipelineResult.Success -> {
+                            noteId?.let { id ->
+                                runCatching { noteSink?.attachAi(id, result.transcript, result.summary) }
+                            }
                             notifier.notifyAiComplete(result.summary.title, result.summary.gist)
+                            aiTracker.update {
+                                it.copy(
+                                    isProcessing = false,
+                                    state = NoteAiProcessingState.COMPLETED,
+                                    isSuccess = true,
+                                    errorMessage = null,
+                                )
+                            }
                         }
                     }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
-                wav?.let { w ->
-                    if (durationMillis > 0L) {
-                        runCatching { noteSink?.recordAudioOnly(w, endedAt - durationMillis, endedAt, trigger) }
+                val message = t.message ?: "Could not summarize that rewind."
+                aiTracker.update {
+                    if (it.isProcessing) {
+                        it.copy(
+                            isProcessing = false,
+                            state = NoteAiProcessingState.FAILED,
+                            errorMessage = message,
+                        )
+                    } else {
+                        it
                     }
                 }
-                reportError(t.message ?: "Could not summarize that rewind.")
+                reportError(message)
             } finally {
                 wav?.delete()
                 pendingRewinds.update { (it - 1).coerceAtLeast(0) }
-                if (pendingRewinds.value == 0) {
-                    stage.value = null
-                }
             }
         }
+        return true
     }
 
     private fun readPcm(wav: File): ShortArray {

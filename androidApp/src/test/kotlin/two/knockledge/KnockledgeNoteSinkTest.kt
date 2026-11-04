@@ -69,11 +69,31 @@ class KnockledgeNoteSinkTest {
         var gotTrigger: TriggerType? = null
         var gotStart = -1L
         var gotTranscript: TranscriptResult? = null
-        val sink = NoteSink { _, start, _, trigger, t, _ ->
-            gotStart = start
-            gotTrigger = trigger
-            gotTranscript = t
-            latch.countDown()
+        val sink = object : NoteSink {
+            override suspend fun record(
+                file: File,
+                startEpochMs: Long,
+                endEpochMs: Long,
+                trigger: TriggerType,
+                transcript: TranscriptResult,
+                summary: Summary,
+            ) = Unit
+
+            override suspend fun recordAudioOnly(
+                file: File,
+                startEpochMs: Long,
+                endEpochMs: Long,
+                trigger: TriggerType,
+            ): String? {
+                gotStart = startEpochMs
+                gotTrigger = trigger
+                return "note-0"
+            }
+
+            override suspend fun attachAi(noteId: String, transcript: TranscriptResult, summary: Summary) {
+                gotTranscript = transcript
+                latch.countDown()
+            }
         }
         val pipeline = RewindPipeline(
             object : Transcriber {
@@ -86,7 +106,7 @@ class KnockledgeNoteSinkTest {
         )
         val dummyDetector = object : KnockGestureDetector {
             override val isListening: Boolean = false
-            override fun startListening(onKnockDetected: () -> Unit) = Unit
+            override fun startListening(onKnockDetected: () -> Boolean) = Unit
             override fun stopListening() = Unit
         }
         val controller = KnockledgeController(

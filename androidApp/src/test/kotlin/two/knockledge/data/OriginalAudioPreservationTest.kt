@@ -78,15 +78,23 @@ class OriginalAudioPreservationTest {
                 trigger: TriggerType,
                 transcript: TranscriptResult,
                 summary: Summary,
-            ) {
+            ) = Unit
+
+            override suspend fun recordAudioOnly(
+                file: File,
+                startEpochMs: Long,
+                endEpochMs: Long,
+                trigger: TriggerType,
+            ): String? {
                 recordedFile = file
                 recordedBytes = file.readBytes()
+                return "note-0"
             }
         }
 
         val detector = object : KnockGestureDetector {
             override val isListening: Boolean = false
-            override fun startListening(onKnockDetected: () -> Unit) = Unit
+            override fun startListening(onKnockDetected: () -> Boolean) = Unit
             override fun stopListening() = Unit
         }
         val controller = KnockledgeController(

@@ -28,13 +28,19 @@ fun interface NoteSink {
         summary: Summary,
     )
 
-    /** Saves raw audio recording note without running or attaching transcript and summary. */
+    /**
+     * Saves raw audio recording note without running or attaching transcript and summary.
+     * Returns the created note id, or null when nothing was saved.
+     */
     suspend fun recordAudioOnly(
         file: File,
         startEpochMs: Long,
         endEpochMs: Long,
         trigger: TriggerType,
-    ) {
+    ): String? = null
+
+    /** Attaches a finished [transcript] and [summary] to the note saved by [recordAudioOnly]. */
+    suspend fun attachAi(noteId: String, transcript: TranscriptResult, summary: Summary) {
         // Default no-op for generic sinks
     }
 }
@@ -56,19 +62,15 @@ class SnapshotNoteSink(
         transcript: TranscriptResult,
         summary: Summary,
     ) {
+        val noteId = recordAudioOnly(file, startEpochMs, endEpochMs, trigger) ?: return
+        attachAi(noteId, transcript, summary)
+    }
+
+    /** Attaches a finished [transcript] and [summary] to the note saved by [recordAudioOnly]. */
+    override suspend fun attachAi(noteId: String, transcript: TranscriptResult, summary: Summary) {
         val user = auth.currentUser.value ?: return
-        val note = notes.createFromSnapshot(
-            AudioSnapshotInput(
-                file = file,
-                startEpochMs = startEpochMs,
-                endEpochMs = endEpochMs,
-                durationMs = endEpochMs - startEpochMs,
-                triggerType = ModelTriggerType.valueOf(trigger.name),
-            ),
-            user.uid,
-        )
         notes.attachTranscript(
-            note.id,
+            noteId,
             user.uid,
             TranscriptInput(
                 fullText = transcript.fullText,
@@ -90,7 +92,7 @@ class SnapshotNoteSink(
             }
         }
         notes.attachSummary(
-            note.id,
+            noteId,
             user.uid,
             SummaryInput(
                 title = summary.title,
@@ -108,15 +110,16 @@ class SnapshotNoteSink(
 
     /**
      * Saves raw audio recording note without running or attaching transcript and summary.
+     * Returns the created note id, or null when no user is signed in.
      */
     override suspend fun recordAudioOnly(
         file: File,
         startEpochMs: Long,
         endEpochMs: Long,
         trigger: TriggerType,
-    ) {
-        val user = auth.currentUser.value ?: return
-        notes.createFromSnapshot(
+    ): String? {
+        val user = auth.currentUser.value ?: return null
+        return notes.createFromSnapshot(
             AudioSnapshotInput(
                 file = file,
                 startEpochMs = startEpochMs,
@@ -125,6 +128,6 @@ class SnapshotNoteSink(
                 triggerType = ModelTriggerType.valueOf(trigger.name),
             ),
             user.uid,
-        )
+        ).id
     }
 }

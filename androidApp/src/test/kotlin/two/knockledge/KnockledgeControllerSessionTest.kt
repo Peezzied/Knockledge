@@ -49,8 +49,8 @@ class KnockledgeControllerSessionTest {
     private class FakeDetector : KnockGestureDetector {
         override var isListening = false
             private set
-        private var onKnockCallback: (() -> Unit)? = null
-        override fun startListening(onKnockDetected: () -> Unit) {
+        private var onKnockCallback: (() -> Boolean)? = null
+        override fun startListening(onKnockDetected: () -> Boolean) {
             isListening = true
             onKnockCallback = onKnockDetected
         }
@@ -103,9 +103,26 @@ class KnockledgeControllerSessionTest {
     fun knockGestureTriggersRewindAndPersistsNote() = runBlocking {
         val latch = CountDownLatch(1)
         var recordedTrigger: TriggerType? = null
-        val sink = NoteSink { _, _, _, trigger, _, _ ->
-            recordedTrigger = trigger
-            latch.countDown()
+        val sink = object : NoteSink {
+            override suspend fun record(
+                file: File,
+                startEpochMs: Long,
+                endEpochMs: Long,
+                trigger: TriggerType,
+                transcript: TranscriptResult,
+                summary: Summary,
+            ) = Unit
+
+            override suspend fun recordAudioOnly(
+                file: File,
+                startEpochMs: Long,
+                endEpochMs: Long,
+                trigger: TriggerType,
+            ): String? {
+                recordedTrigger = trigger
+                latch.countDown()
+                return "note-0"
+            }
         }
         val pipeline = RewindPipeline(
             object : Transcriber {
@@ -133,7 +150,7 @@ class KnockledgeControllerSessionTest {
             while (!controller.state.value.canRewind) delay(10L)
         }
 
-        detector.triggerKnock()
+        assertTrue(detector.triggerKnock() == true, "Accepted knock must report true so the haptic fires")
         assertTrue(latch.await(5, TimeUnit.SECONDS), "NoteSink was not notified on gesture")
         assertEquals(TriggerType.GESTURE, recordedTrigger)
         controller.stop()

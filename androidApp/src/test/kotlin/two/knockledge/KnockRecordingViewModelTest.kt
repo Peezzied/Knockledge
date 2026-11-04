@@ -41,21 +41,26 @@ class KnockRecordingViewModelTest {
     private class TestDetector : KnockGestureDetector {
         override var isListening = false
             private set
-        override fun startListening(onKnockDetected: () -> Unit) { isListening = true }
+        private var onKnockDetected: (() -> Boolean)? = null
+        override fun startListening(onKnockDetected: () -> Boolean) {
+            isListening = true
+            this.onKnockDetected = onKnockDetected
+        }
         override fun stopListening() { isListening = false }
         override fun setPeakThreshold(threshold: Float) = Unit
+        fun knock(): Boolean? = onKnockDetected?.invoke()
     }
 
     private class EmptySource : AudioSource {
         override fun frames(sampleRate: Int): Flow<ShortArray> = emptyFlow()
     }
 
-    private fun createController(): KnockledgeController {
+    private fun createController(detector: TestDetector = TestDetector()): KnockledgeController {
         val capturer = RingAudioCapturer(EmptySource(), TestBuffer())
         val pipeline = RewindPipeline(PlaceholderTranscriber(), PlaceholderSummarizer(), DefaultAudioPreprocessor())
         return KnockledgeController(
             capturer = capturer,
-            knockDetector = TestDetector(),
+            knockDetector = detector,
             hooks = NoopSessionHooks,
             pipeline = pipeline,
         )
@@ -120,6 +125,24 @@ class KnockRecordingViewModelTest {
         awaitUi { vm.uiState.value.isRecording }
         // EmptySource writes no audio, so the minimum buffered window is never reached.
         assertFalse(vm.uiState.value.canCapture)
+
+        vm.stopSession()
+    }
+
+    @Test
+    fun knockBelowSaveThresholdMarksSaveFailed() = runBlocking {
+        val detector = TestDetector()
+        val controller = createController(detector)
+        val settings = AppSettings(MemoryStore(), "m")
+        val vm = KnockRecordingViewModel(controller, settings)
+
+        vm.startSession()
+        awaitUi { vm.uiState.value.isRecording }
+
+        // EmptySource writes no audio, so canRewind stays false and the knock must be rejected.
+        assertFalse(detector.knock() ?: true, "Rejected knock must report false so no haptic fires")
+        awaitUi { vm.uiState.value.lastSaveSuccess == false }
+        assertFalse(vm.uiState.value.lastSaveSuccess ?: true)
 
         vm.stopSession()
     }

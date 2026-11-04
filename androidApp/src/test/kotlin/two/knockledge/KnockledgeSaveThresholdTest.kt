@@ -5,7 +5,7 @@ import group.two.knockledge.audio.AudioSource
 import group.two.knockledge.audio.NoopSessionHooks
 import group.two.knockledge.audio.RingAudioCapturer
 import group.two.knockledge.core.LocalAudioRingBuffer
-import group.two.knockledge.data.InMemoryRecentsRepository
+import group.two.knockledge.data.TriggerType
 import group.two.knockledge.pipeline.DefaultAudioPreprocessor
 import group.two.knockledge.pipeline.PlaceholderSummarizer
 import group.two.knockledge.pipeline.PlaceholderTranscriber
@@ -44,7 +44,7 @@ class KnockledgeSaveThresholdTest {
 
         val dummyDetector = object : KnockGestureDetector {
             override val isListening: Boolean = false
-            override fun startListening(onKnockDetected: () -> Unit) = Unit
+            override fun startListening(onKnockDetected: () -> Boolean) = Unit
             override fun stopListening() = Unit
         }
         val controller = KnockledgeController(
@@ -52,7 +52,6 @@ class KnockledgeSaveThresholdTest {
             knockDetector = dummyDetector,
             hooks = NoopSessionHooks,
             pipeline = pipeline,
-            recents = InMemoryRecentsRepository(),
             minAudioSaveSeconds = minSaveSeconds,
         )
 
@@ -66,6 +65,36 @@ class KnockledgeSaveThresholdTest {
         // With threshold updated to 4, the 4s buffer unlocks.
         minSaveSeconds.value = 4
         assertTrue("At 4s with 4s threshold, canRewind must be true", controller.state.value.canRewind)
+        controller.stop()
+    }
+
+    @Test
+    fun rewindReportsRejectionBelowSaveThreshold() = runBlocking {
+        val dummyBuffer = DummyBuffer(4_000L)
+        val minSaveSeconds = MutableStateFlow(5)
+        val pipeline = RewindPipeline(PlaceholderTranscriber(), PlaceholderSummarizer(), DefaultAudioPreprocessor())
+        val dummyDetector = object : KnockGestureDetector {
+            override val isListening: Boolean = false
+            override fun startListening(onKnockDetected: () -> Boolean) = Unit
+            override fun stopListening() = Unit
+        }
+        val controller = KnockledgeController(
+            capturer = RingAudioCapturer(DummySource(chunks = 1), dummyBuffer),
+            knockDetector = dummyDetector,
+            hooks = NoopSessionHooks,
+            pipeline = pipeline,
+            minAudioSaveSeconds = minSaveSeconds,
+        )
+
+        controller.start()
+        withTimeout(5_000L) {
+            while (controller.state.value.bufferedMillis == 0L) delay(10L)
+        }
+
+        // The return value is the signal the detector uses to gate vibration.
+        assertFalse("Below the save threshold, rewind must report rejection", controller.rewind(TriggerType.GESTURE))
+        minSaveSeconds.value = 4
+        assertTrue("At the save threshold, rewind must report acceptance", controller.rewind(TriggerType.GESTURE))
         controller.stop()
     }
 }

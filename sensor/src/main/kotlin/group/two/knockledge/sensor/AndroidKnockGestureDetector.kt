@@ -14,7 +14,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import javax.inject.Inject
 
-/** Accelerometer-backed detector: runs [TapRT] on a background handler thread and vibrates on each confirmed double knock. */
+/** Accelerometer-backed detector: runs [TapRT] on a background handler thread and vibrates on each accepted double knock. */
 class AndroidKnockGestureDetector @Inject constructor(private val app: Application?) : KnockGestureDetector {
     private val sensors by lazy { app!!.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     private val vibrator: Vibrator? by lazy {
@@ -52,10 +52,11 @@ class AndroidKnockGestureDetector @Inject constructor(private val app: Applicati
 
     /**
      * Registers the accelerometer at the fastest rate on a dedicated handler thread, so detection
-     * never runs on the calling thread, and reports at most one knock per 500 ms. Does nothing when
-     * already listening or when the device has no accelerometer.
+     * never runs on the calling thread, and reports at most one knock per 500 ms. Vibrates only
+     * when [onKnockDetected] accepts the knock. Does nothing when already listening or when the
+     * device has no accelerometer.
      */
-    override fun startListening(onKnockDetected: () -> Unit) {
+    override fun startListening(onKnockDetected: () -> Boolean) {
         if (isListening) return
         val accelerometer = sensors.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
         tap.getLowpassKey().setPara(1f)
@@ -76,8 +77,9 @@ class AndroidKnockGestureDetector @Inject constructor(private val app: Applicati
                     && event.timestamp - lastDetectionNs >= 500_000_000L
                 ) {
                     lastDetectionNs = event.timestamp
-                    vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                    onKnockDetected()
+                    if (onKnockDetected()) {
+                        vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                    }
                 }
             }
 

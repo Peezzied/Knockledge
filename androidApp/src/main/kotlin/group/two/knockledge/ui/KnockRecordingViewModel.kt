@@ -41,6 +41,9 @@ class KnockRecordingViewModel(
                     }
                 }
         }
+        viewModelScope.launch {
+            controller.rejectedKnocks.collect { lastSaveSuccess.value = false }
+        }
     }
 
     /** Combined recording, buffer, and save-status state for the UI. */
@@ -75,12 +78,7 @@ class KnockRecordingViewModel(
 
     /** Saves a snapshot of the current buffer and records the outcome. */
     override fun triggerManualSave() {
-        if (!controller.state.value.canRewind) {
-            lastSaveSuccess.value = false
-            return
-        }
-        controller.rewind(TriggerType.MANUAL)
-        lastSaveSuccess.value = true
+        lastSaveSuccess.value = controller.rewind(TriggerType.MANUAL)
     }
 
     /** Persists the requested buffer window length via [AppSettings]. */

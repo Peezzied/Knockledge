@@ -34,7 +34,7 @@ class KnockledgeGraph(
         summarizer: Summarizer = PlaceholderSummarizer(),
         buffer: LocalAudioRingBuffer,
         knockDetector: KnockGestureDetector = object : KnockGestureDetector {
-            override fun startListening(onKnockDetected: () -> Unit) = Unit
+            override fun startListening(onKnockDetected: () -> Boolean) = Unit
             override fun stopListening() = Unit
             override val isListening: Boolean = false
         },

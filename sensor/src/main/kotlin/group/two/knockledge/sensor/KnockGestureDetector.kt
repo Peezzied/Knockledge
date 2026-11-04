@@ -2,8 +2,12 @@ package group.two.knockledge.sensor
 
 /** Source of knock gestures, decoupled from the sensor API so callers can substitute a fake. */
 interface KnockGestureDetector {
-    /** Starts listening and calls [onKnockDetected] for each confirmed knock; repeated calls while listening do nothing. */
-    fun startListening(onKnockDetected: () -> Unit)
+    /**
+     * Starts listening and calls [onKnockDetected] for each confirmed knock; repeated calls while
+     * listening do nothing. The callback returns true when the knock is accepted, which is when
+     * implementations may fire success feedback such as vibration.
+     */
+    fun startListening(onKnockDetected: () -> Boolean)
 
     /** Stops listening and releases sensor resources; safe to call when not listening. */
     fun stopListening()

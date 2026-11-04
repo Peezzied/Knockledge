@@ -6,7 +6,9 @@ import group.two.knockledge.audio.SessionHooks
 import group.two.knockledge.core.FileLocalAudioRingBuffer
 import group.two.knockledge.data.TriggerType
 import group.two.knockledge.data.repository.NoteSink
+import group.two.knockledge.pipeline.AiProcessingTracker
 import group.two.knockledge.pipeline.DefaultAudioPreprocessor
+import group.two.knockledge.pipeline.NoteAiProcessingState
 import group.two.knockledge.pipeline.PlaceholderSummarizer
 import group.two.knockledge.pipeline.PlaceholderTranscriber
 import group.two.knockledge.pipeline.RewindPipeline
@@ -33,6 +35,9 @@ class KnockledgeControllerAutoAiTest {
     private class RecordingNoteSink : NoteSink {
         var recordedAudioOnlyCount = 0
         var recordedFullCount = 0
+        var attachAiCount = 0
+        var attachedNoteId: String? = null
+        var lastAudioOnlyNoteId: String? = null
         var lastTrigger: TriggerType? = null
 
         override suspend fun record(
@@ -52,9 +57,15 @@ class KnockledgeControllerAutoAiTest {
             startEpochMs: Long,
             endEpochMs: Long,
             trigger: TriggerType,
-        ) {
+        ): String? {
             recordedAudioOnlyCount++
             lastTrigger = trigger
+            return "note-$recordedAudioOnlyCount".also { lastAudioOnlyNoteId = it }
+        }
+
+        override suspend fun attachAi(noteId: String, transcript: TranscriptResult, summary: Summary) {
+            attachAiCount++
+            attachedNoteId = noteId
         }
     }
 
@@ -75,7 +86,7 @@ class KnockledgeControllerAutoAiTest {
 
     private class FakeDetector : KnockGestureDetector {
         override val isListening: Boolean = false
-        override fun startListening(onKnockDetected: () -> Unit) = Unit
+        override fun startListening(onKnockDetected: () -> Boolean) = Unit
         override fun stopListening() = Unit
     }
 
@@ -143,8 +154,10 @@ class KnockledgeControllerAutoAiTest {
         controller.rewind(TriggerType.MANUAL)
         withTimeout(5_000) { while (controller.state.value.pendingRewinds > 0) delay(10) }
 
-        assertEquals(0, sink.recordedAudioOnlyCount)
-        assertEquals(1, sink.recordedFullCount)
+        assertEquals(1, sink.recordedAudioOnlyCount)
+        assertEquals(0, sink.recordedFullCount)
+        assertEquals(1, sink.attachAiCount)
+        assertEquals(sink.lastAudioOnlyNoteId, sink.attachedNoteId)
         assertEquals(TriggerType.MANUAL, sink.lastTrigger)
     }
 
@@ -179,10 +192,11 @@ class KnockledgeControllerAutoAiTest {
 
         assertEquals(1, sink.recordedAudioOnlyCount)
         assertEquals(0, sink.recordedFullCount)
+        assertEquals(0, sink.attachAiCount)
     }
 
     @Test
-    fun rewindDoesNotSaveAudioOnlyOnInsufficientSpeech() = runBlocking {
+    fun rewindKeepsAudioOnlyNoteOnInsufficientSpeech() = runBlocking {
         val sink = RecordingNoteSink()
         val settings = AppSettings(MemoryStore(), "qwen2b")
         settings.setAutoAiProcessingEnabled(true)
@@ -210,8 +224,45 @@ class KnockledgeControllerAutoAiTest {
             while (controller.state.value.error == null && sink.recordedAudioOnlyCount == 0) delay(10)
         }
 
-        assertEquals(0, sink.recordedAudioOnlyCount)
+        assertEquals(1, sink.recordedAudioOnlyCount)
         assertEquals(0, sink.recordedFullCount)
+        assertEquals(0, sink.attachAiCount)
+    }
+
+    @Test
+    fun rewindPublishesCompletedStateToSharedAiTracker() = runBlocking {
+        val sink = RecordingNoteSink()
+        val settings = AppSettings(MemoryStore(), "qwen2b")
+        settings.setAutoAiProcessingEnabled(true)
+        val tracker = AiProcessingTracker()
+
+        val ringBuffer = FileLocalAudioRingBuffer(tempDir, 60, 16_000)
+        ringBuffer.write(ShortArray(160_000) { 2_000 })
+
+        val controller = KnockledgeController(
+            capturer = RingAudioCapturer(NoOpAudioSource(), ringBuffer),
+            knockDetector = FakeDetector(),
+            hooks = NoOpHooks(),
+            pipeline = RewindPipeline(
+                transcriber = PlaceholderTranscriber(),
+                summarizer = PlaceholderSummarizer(),
+                preprocessor = DefaultAudioPreprocessor(),
+            ),
+            noteSink = sink,
+            autoAiProcessingEnabled = settings.autoAiProcessingEnabled,
+            aiTracker = tracker,
+        )
+
+        controller.start()
+        withTimeout(5_000) { while (!controller.state.value.canRewind) delay(10) }
+        controller.rewind(TriggerType.MANUAL)
+        withTimeout(5_000) { while (controller.state.value.pendingRewinds > 0) delay(10) }
+
+        val aiState = tracker.state.value
+        assertEquals("note-1", aiState.noteId)
+        assertEquals(NoteAiProcessingState.COMPLETED, aiState.state)
+        kotlin.test.assertFalse(aiState.isProcessing)
+        kotlin.test.assertTrue(aiState.isSuccess)
     }
 
     @Test
