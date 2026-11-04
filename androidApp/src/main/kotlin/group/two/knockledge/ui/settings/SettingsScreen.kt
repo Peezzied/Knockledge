@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,7 +44,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
@@ -77,6 +78,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -1674,28 +1678,47 @@ private fun SegmentedButtonGroup(
     onOptionSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Longer labels get wider segments so words such as "Auto-detect" do not break mid-word.
+    val segmentWeights = options.map { it.length.coerceAtLeast(6).toFloat() }
+    // 12.dp horizontal padding leaves too little room for the longest labels; keep vertical as is.
+    val contentPadding = PaddingValues(
+        horizontal = 6.dp,
+        vertical = SegmentedButtonDefaults.ContentPadding.calculateTopPadding(),
+    )
+
     SingleChoiceSegmentedButtonRow(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
     ) {
         options.forEachIndexed { index, option ->
-            SegmentedButton(
-                selected = selectedIndex == index,
+            val selected = selectedIndex == index
+            // SegmentedButton always reserves an 18.dp icon + 8.dp gap, so a plain Surface is used
+            // to keep the label centered without that dead space.
+            Surface(
+                selected = selected,
                 onClick = { onOptionSelected(index) },
+                modifier = Modifier
+                    .weight(segmentWeights[index])
+                    .fillMaxHeight()
+                    .semantics { role = Role.RadioButton },
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
-                colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = AntiqueBrass,
-                    activeContentColor = TextInk,
-                    inactiveContainerColor = Color.Transparent,
-                    inactiveContentColor = ParchmentCream,
-                    activeBorderColor = AntiqueBrass,
-                    inactiveBorderColor = OutlineVariant,
+                color = if (selected) AntiqueBrass else Color.Transparent,
+                contentColor = if (selected) TextInk else ParchmentCream,
+                border = SegmentedButtonDefaults.borderStroke(
+                    color = if (selected) AntiqueBrass else OutlineVariant,
                 ),
             ) {
-                Text(
-                    text = option,
-                    style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center,
-                )
+                Box(
+                    modifier = Modifier.padding(contentPadding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = option,
+                        style = MaterialTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
     }
