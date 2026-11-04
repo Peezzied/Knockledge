@@ -183,6 +183,11 @@
     <string name="notification_ai_complete_title">AI Processing Complete</string>
     <string name="notification_ai_complete_fallback">Transcription and summary are ready.</string>
 
+    <!-- Model Download Notification -->
+    <string name="notification_channel_models_name">Model Downloads</string>
+    <string name="notification_channel_models_desc">Progress while on-device AI models download.</string>
+    <string name="notification_title_model_download">Downloading AI models</string>
+
     <!-- Session Recording Notification -->
     <string name="notification_title_recording">Cache Recording</string>
     <string name="notification_title_summarizing">Summarizing…</string>

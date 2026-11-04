@@ -8,7 +8,7 @@ data class ModelsState(
     val downloading: Boolean = false,
     val downloadedBytes: Long = 0L,
     val totalBytes: Long = 0L,
-    /** Which file is downloading now, for example "Qwen3.5 2B". */
+    /** [ModelFile.id] of the file downloading now, for example "qwen2b". */
     val current: String? = null,
     val error: String? = null,
 ) {

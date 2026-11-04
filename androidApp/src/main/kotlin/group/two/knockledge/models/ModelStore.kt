@@ -71,6 +71,12 @@ class ModelStore(
     private val selectedSummaryModel: () -> String,
     /** Current transcription model id from settings (a Whisper id). */
     private val selectedTranscriptionModel: () -> String = { ModelCatalog.whisper.id },
+    /**
+     * Called with overall progress (0..1) while files download, and null when the
+     * session ends, fails, or is cancelled. Android uses it to keep the process
+     * alive under a foreground service.
+     */
+    private val downloadSession: (progress: Float?) -> Unit = {},
 ) : ModelProvider, ModelFiles {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -151,13 +157,15 @@ class ModelStore(
         _state.update { it.copy(downloading = true, error = null, totalBytes = totalBytes) }
         job = scope.launch {
             try {
+                downloadSession(0f)
                 var doneBefore = 0L
                 for (model in files.toList()) {
                     if (pathOf(model) == null) {
                         val part = pathFor(model.fileName + ".part")
                         val existing = storage.sizeOf(part).coerceAtLeast(0L)
                         downloader.download(model.url, part, existing) { written ->
-                            _state.update { it.copy(current = model.label, downloadedBytes = doneBefore + written) }
+                            _state.update { it.copy(current = model.id, downloadedBytes = doneBefore + written) }
+                            downloadSession(_state.value.progress)
                         }
                         if (!storage.move(part, pathFor(model.fileName))) {
                             error("could not save ${model.fileName}")
@@ -174,6 +182,8 @@ class ModelStore(
                 _state.update {
                     it.copy(downloading = false, error = "Download stopped: ${e.message ?: "network error"}. Tap to resume.")
                 }
+            } finally {
+                downloadSession(null)
             }
         }
     }

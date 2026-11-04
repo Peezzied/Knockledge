@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- Optional "Microphone + phone audio": Android's playback capture runs through MediaProjection. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Keeps AI model downloads alive while the app is backgrounded. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- allowBackup=false: notes sync only through the app's own Firebase sync, not OS cloud backup. -->
@@ -41,6 +43,11 @@
             android:name=".KnockledgeService"
             android:exported="false"
             android:foregroundServiceType="microphone|mediaProjection" />
+
+        <service
+            android:name=".models.ModelDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>

@@ -44,6 +44,7 @@ import group.two.knockledge.data.StoredRecentsRepository
 import group.two.knockledge.data.repository.NoteSink
 import group.two.knockledge.data.repository.SnapshotNoteSink
 import group.two.knockledge.models.ModelCatalog
+import group.two.knockledge.models.ModelDownloadService
 import group.two.knockledge.models.ModelDownloader
 import group.two.knockledge.models.ModelFiles
 import group.two.knockledge.models.ModelProvider
@@ -148,12 +149,18 @@ object KnockledgeModule {
     /** Download, install and delete of model files, reporting the model selected in settings. */
     @Provides
     @Singleton
-    fun modelStore(storage: ModelStorage, downloader: ModelDownloader, settings: AppSettings): ModelStore =
+    fun modelStore(
+        app: Application,
+        storage: ModelStorage,
+        downloader: ModelDownloader,
+        settings: AppSettings,
+    ): ModelStore =
         ModelStore(
             storage,
             downloader,
             selectedSummaryModel = { settings.summaryModel.value },
             selectedTranscriptionModel = { settings.transcriptionLocalModel.value },
+            downloadSession = { progress -> ModelDownloadService.sync(app, progress) },
         )
 
     /** The same store, exposed through its read-only provider interface. */
