@@ -1,5 +1,6 @@
 package group.two.knockledge.ui
 
+import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -83,6 +84,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -90,12 +92,15 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -122,6 +127,8 @@ import group.two.knockledge.di.KnockledgeComponent
 import group.two.knockledge.pipeline.RewindStage
 import group.two.knockledge.ui.auth.AuthScreen
 import group.two.knockledge.ui.auth.AuthViewModel
+import group.two.knockledge.ui.auth.BRASS_DISSOLVE_DURATION_MS
+import group.two.knockledge.ui.auth.BrassDissolveOverlay
 import group.two.knockledge.ui.notes.NoteListViewModel
 import group.two.knockledge.ui.playback.AudioPlaybackScreen
 import group.two.knockledge.ui.playback.AudioPlaybackViewModel
@@ -1534,8 +1541,24 @@ fun LiveTestAppShell(
     val authState by authViewModel.state.collectAsState()
     val currentUser = authState.user
 
+    // Brass dissolve transition state: the auth screen is recorded into a graphics layer so it
+    // can shatter over the home content the moment sign-in removes it from composition.
+    val authLayer = rememberGraphicsLayer()
+    var authWasShown by remember { mutableStateOf(false) }
+    var dissolveSnapshot by remember { mutableStateOf<ImageBitmap?>(null) }
+    var dissolveActive by remember { mutableStateOf(false) }
+    val dissolveProgress = remember { Animatable(0f) }
+
     if (currentUser == null) {
-        Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+        authWasShown = true
+        Scaffold(
+            modifier = modifier
+                .fillMaxSize()
+                .drawWithContent {
+                    authLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(authLayer)
+                },
+        ) { innerPadding ->
             AuthScreen(
                 state = authState,
                 onGoogle = authViewModel::signInWithGoogle,
@@ -1601,6 +1624,31 @@ fun LiveTestAppShell(
             }
         }
         LaunchedEffect(appTour) { appTour.maybeStart() }
+
+        LaunchedEffect(activeUserId) {
+            val animatorScale = Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f,
+            )
+            if (authWasShown && animatorScale > 0f) {
+                val snapshot = runCatching { authLayer.toImageBitmap() }.getOrNull()
+                if (snapshot != null) {
+                    dissolveSnapshot = snapshot
+                    dissolveProgress.snapTo(0f)
+                    dissolveActive = true
+                    dissolveProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = BRASS_DISSOLVE_DURATION_MS,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    )
+                    dissolveActive = false
+                    dissolveSnapshot = null
+                }
+            }
+        }
 
         Box(
             modifier = modifier
@@ -1959,6 +2007,16 @@ fun LiveTestAppShell(
                         appTour.skip()
                         navController.popBackStack("home", inclusive = false)
                     },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            val snapshot = dissolveSnapshot
+            if (dissolveActive && snapshot != null) {
+                BrassDissolveOverlay(
+                    snapshot = snapshot,
+                    progress = dissolveProgress.value,
+                    originPx = Offset.Unspecified,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
