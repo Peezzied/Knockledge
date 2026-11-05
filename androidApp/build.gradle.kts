@@ -49,10 +49,11 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.firebase.ai)
     implementation(libs.firebase.appcheck.playintegrity)
-    debugImplementation(libs.firebase.appcheck.debug)
+    implementation(libs.firebase.appcheck.debug)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
+    implementation(libs.androidx.fragment)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
@@ -94,6 +95,8 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            // shortcut: debug-signed release, replace with upload keystore before Play submission
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
