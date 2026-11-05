@@ -38,7 +38,6 @@ enum class RewindStage {
     /** Large language model distilling the transcript into a summary. */
     Summarizing,
 }
-
 /** Terminal result of running the rewind pipeline. */
 sealed interface PipelineResult {
     /** Pipeline executed successfully and produced a summary and transcript. */

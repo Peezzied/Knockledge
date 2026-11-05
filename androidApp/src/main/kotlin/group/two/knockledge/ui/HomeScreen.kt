@@ -1707,12 +1707,8 @@ fun LiveTestAppShell(
                         },
                         onTogglePlayNote = { note ->
                             if (note.id == TOUR_SAMPLE_NOTE_ID) return@HomeScreen
-                            if (selectedNoteId != note.id) {
-                                selectedNoteId = note.id
-                                playbackViewModel.loadNote(note)
-                            } else {
-                                playbackViewModel.togglePlayPause()
-                            }
+                            selectedNoteId = note.id
+                            playbackViewModel.playOrToggle(note)
                         },
                         onSeekToPosition = { note, posMs ->
                             if (note.id == TOUR_SAMPLE_NOTE_ID) return@HomeScreen

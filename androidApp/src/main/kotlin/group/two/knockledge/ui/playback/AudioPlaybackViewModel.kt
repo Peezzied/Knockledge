@@ -50,6 +50,18 @@ class AudioPlaybackViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Starts playback of [note] if it is not the loaded note, otherwise toggles
+     * play/pause on the loaded note.
+     */
+    fun playOrToggle(note: Note) {
+        if (currentNote?.id == note.id) {
+            togglePlayPause()
+        } else {
+            loadNote(note, autoPlay = true)
+        }
+    }
+
     override fun togglePlayPause() {
         val state = playbackState.value
         if (state.isPlaying) {
